@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Tiburcio Açaí | Peça pelo WhatsApp — Região 5, Vila Velha</title>
+<meta name="description" content="Tiburcio Açaí — monte seu açaí, escolha os complementos e finalize seu pedido direto pelo WhatsApp. Entregamos na Região 5 de Vila Velha - ES." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ===================== HEADER ===================== -->
+<header class="site-header" id="topo">
+  <div class="wrap header-row">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="40" height="40">
+          <circle cx="24" cy="24" r="24" fill="var(--roxo-escuro)"/>
+          <path d="M14 27c0-7 4.5-11 10-11s10 4 10 11-4.5 12-10 12-10-5-10-12z" fill="var(--roxo)"/>
+          <ellipse cx="24" cy="17" rx="9" ry="3" fill="var(--creme)"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Tiburcio <em>Açaí</em></span>
+        <span class="brand-slogan">Energia · Sabor · Conexão</span>
+      </div>
+    </div>
+
+    <nav class="main-nav" aria-label="Navegação principal">
+      <a href="#cardapio">Cardápio</a>
+      <a href="#area-atendimento">Área de entrega</a>
+      <a href="#contato">Contato</a>
+    </nav>
+
+    <button class="cart-button" id="btnAbrirCarrinho" aria-haspopup="dialog" aria-controls="carrinhoDrawer">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l3-8H5.4M7 13L5.4 5M7 13l-2.3 4.6A1 1 0 0 0 5.6 19H17M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Carrinho</span>
+      <span class="cart-badge" id="cartBadge">0</span>
+    </button>
+  </div>
+</header>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <p class="hero-eyebrow">Só na Região 5 · Vila Velha - ES</p>
+      <h1>Seu açaí do jeito que <em>você</em> gosta, no seu WhatsApp em minutos.</h1>
+      <p class="hero-desc">Monte o seu copo, escolha os complementos e finalize o pedido — a gente organiza tudo certinho e manda pronto pra conversa no WhatsApp.</p>
+      <div class="hero-actions">
+        <a href="#cardapio" class="btn btn-primary btn-lg">Fazer meu pedido</a>
+        <a href="#area-atendimento" class="btn btn-ghost btn-lg">Ver área de entrega</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong>100%</strong><span>Montado por você</span></div>
+        <div><strong>Região 5</strong><span>Vila Velha - ES</span></div>
+        <div><strong>Direto</strong><span>Pedido no WhatsApp</span></div>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="acai-bowl">
+        <div class="bowl-cream"></div>
+        <div class="bowl-berry b1"></div>
+        <div class="bowl-berry b2"></div>
+        <div class="bowl-berry b3"></div>
+        <div class="bowl-leaf"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== COMO FUNCIONA ===================== -->
+<section class="como-funciona">
+  <div class="wrap steps-row">
+    <div class="step"><span class="step-n">1</span><div><h3>Escolha o tamanho</h3><p>De 300ml a 1L, do jeito que bater a fome.</p></div></div>
+    <div class="step"><span class="step-n">2</span><div><h3>Monte o seu</h3><p>Selecione os complementos que você quiser.</p></div></div>
+    <div class="step"><span class="step-n">3</span><div><h3>Confirme os dados</h3><p>Endereço, pagamento e pronto.</p></div></div>
+    <div class="step"><span class="step-n">4</span><div><h3>Envie no WhatsApp</h3><p>A mensagem já sai organizada pra gente.</p></div></div>
+  </div>
+</section>
+
+<!-- ===================== PRODUTOS EM DESTAQUE ===================== -->
+<section class="destaques">
+  <div class="wrap">
+    <h2>Os mais pedidos</h2>
+    <p class="section-sub">Os tamanhos favoritos de quem já provou.</p>
+    <div class="destaque-grid" id="destaqueGrid"></div>
+  </div>
+</section>
+
+<!-- ===================== CARDÁPIO ===================== -->
+<section class="cardapio" id="cardapio">
+  <div class="wrap">
+    <h2>Cardápio</h2>
+    <p class="section-sub">Escolha o tamanho do seu açaí e monte do seu jeito.</p>
+    <div class="cardapio-grid" id="cardapioGrid"></div>
+  </div>
+</section>
+
+<!-- ===================== ÁREA DE ATENDIMENTO ===================== -->
+<section class="area-atendimento" id="area-atendimento">
+  <div class="wrap area-inner">
+    <div>
+      <h2>Área de atendimento</h2>
+      <p class="section-sub">
+        A Tiburcio Açaí entrega <strong>exclusivamente na Região 5 de Vila Velha - ES</strong>.
+        Se o seu bairro não estiver na lista, por enquanto ainda não chegamos até você — mas
+        pode vir retirar seu pedido no local combinado!
+      </p>
+      <a href="#cardapio" class="btn btn-primary">Ver cardápio</a>
+    </div>
+    <div class="bairros-card">
+      <h3>Bairros atendidos</h3>
+      <ul id="listaBairros" class="bairros-list"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CTA FINAL ===================== -->
+<section class="cta-final">
+  <div class="wrap cta-final-inner">
+    <h2>Bateu a vontade?</h2>
+    <p>Monte seu açaí agora e receba a confirmação certinha no WhatsApp.</p>
+    <a href="#cardapio" class="btn btn-primary btn-lg">Pedir agora</a>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="site-footer" id="contato">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-name light">Tiburcio <em>Açaí</em></span>
+      <p>Energia, sabor e conexão em cada copo.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Atendimento</h4>
+      <p id="footerRegiao">Região 5 — Vila Velha, ES</p>
+      <p id="footerHorario">Todos os dias, das 12h às 22h</p>
+    </div>
+    <div class="footer-col">
+      <h4>Fale com a gente</h4>
+      <a id="footerWhatsLink" href="#" target="_blank" rel="noopener">Chamar no WhatsApp</a>
+      <p id="footerInsta">@tiburcioacai</p>
+    </div>
+  </div>
+  <div class="wrap footer-bottom">
+    <p>© <span id="anoAtual"></span> Tiburcio Açaí. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<!-- ===================== BOTÃO FLUTUANTE WHATSAPP ===================== -->
+<a id="whatsFloat" class="whats-float" href="#" target="_blank" rel="noopener" aria-label="Chamar no WhatsApp">
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M16 3C9 3 3.2 8.7 3.2 15.7c0 2.5.7 4.8 1.9 6.8L3 29l6.7-2c1.9 1.1 4.1 1.7 6.3 1.7 7 0 12.8-5.7 12.8-12.7C28.8 8.7 23 3 16 3Z" fill="#25D366"/><path d="M12.2 10.4c-.3-.7-.6-.7-.9-.7h-.7c-.3 0-.7.1-1 .5-.3.4-1.3 1.3-1.3 3.1 0 1.8 1.3 3.6 1.5 3.8.2.3 2.6 4 6.3 5.4 3.1 1.2 3.7 1 4.4.9.7-.1 2.2-.9 2.5-1.7.3-.9.3-1.6.2-1.8-.1-.2-.4-.3-.8-.5-.4-.2-2.2-1.1-2.6-1.2-.3-.1-.6-.2-.9.2-.3.4-1 1.2-1.2 1.5-.2.3-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.9-2.3-2.1-2.7-.2-.4 0-.6.2-.8.2-.2.4-.4.5-.7.2-.2.2-.4.3-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.3-1.3-3.2Z" fill="#fff"/></svg>
+</a>
+
+<!-- ===================== MODAL: MONTAR PRODUTO ===================== -->
+<div class="modal-overlay" id="produtoModalOverlay">
+  <div class="modal produto-modal" role="dialog" aria-modal="true" aria-labelledby="produtoModalTitulo">
+    <button class="modal-close" id="fecharProdutoModal" aria-label="Fechar">&times;</button>
+    <h3 id="produtoModalTitulo"></h3>
+    <p id="produtoModalDesc" class="modal-sub"></p>
+    <p class="complemento-info">Escolha até <strong id="qtdGratisTexto">0</strong> complementos grátis. Itens extras têm valor adicional mostrado ao lado.</p>
+    <div id="complementosLista" class="complementos-grid"></div>
+
+    <div class="qtd-row">
+      <label for="qtdProduto">Quantidade</label>
+      <div class="qtd-control">
+        <button type="button" id="qtdMenos" aria-label="Diminuir">−</button>
+        <span id="qtdValor">1</span>
+        <button type="button" id="qtdMais" aria-label="Aumentar">+</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <span class="modal-total">Total: <strong id="produtoModalTotal">R$ 0,00</strong></span>
+      <button class="btn btn-primary" id="addAoCarrinho">Adicionar ao carrinho</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CARRINHO (DRAWER) ===================== -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="carrinho-drawer" id="carrinhoDrawer" role="dialog" aria-modal="true" aria-labelledby="carrinhoTitulo">
+  <div class="drawer-head">
+    <h3 id="carrinhoTitulo">Seu carrinho</h3>
+    <button class="modal-close" id="fecharCarrinho" aria-label="Fechar carrinho">&times;</button>
+  </div>
+
+  <div class="drawer-body" id="carrinhoItens">
+    <p class="carrinho-vazio" id="carrinhoVazioMsg">Seu carrinho está vazio. Que tal um açaí agora?</p>
+  </div>
+
+  <div class="drawer-footer">
+    <div class="linha-valor"><span>Subtotal</span><strong id="carrinhoSubtotal">R$ 0,00</strong></div>
+    <div class="linha-valor"><span>Taxa de entrega</span><strong id="carrinhoTaxa">—</strong></div>
+    <div class="linha-valor total"><span>Total</span><strong id="carrinhoTotal">R$ 0,00</strong></div>
+    <button class="btn btn-primary btn-block" id="btnIrCheckout" disabled>Continuar para os dados</button>
+  </div>
+</aside>
+
+<!-- ===================== MODAL: CHECKOUT ===================== -->
+<div class="modal-overlay" id="checkoutModalOverlay">
+  <div class="modal checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutTitulo">
+    <button class="modal-close" id="fecharCheckout" aria-label="Fechar">&times;</button>
+    <h3 id="checkoutTitulo">Finalizar pedido</h3>
+
+    <form id="checkoutForm" novalidate>
+
+      <div class="campo-toggle">
+        <button type="button" class="toggle-btn active" data-tipo="entrega" id="btnEntrega">Entrega</button>
+        <button type="button" class="toggle-btn" data-tipo="retirada" id="btnRetirada">Retirada</button>
+      </div>
+
+      <div class="form-grid">
+        <label class="campo">
+          <span>Nome</span>
+          <input type="text" id="campoNome" required autocomplete="name" />
+        </label>
+        <label class="campo">
+          <span>Telefone</span>
+          <input type="tel" id="campoTelefone" required autocomplete="tel" placeholder="(27) 9XXXX-XXXX" />
+        </label>
+      </div>
+
+      <div id="blocoEndereco">
+        <div class="form-grid">
+          <label class="campo campo-bairro">
+            <span>Bairro</span>
+            <select id="campoBairro" required>
+              <option value="">Selecione seu bairro</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-grid">
+          <label class="campo campo-grow">
+            <span>Endereço</span>
+            <input type="text" id="campoEndereco" placeholder="Rua / Avenida" />
+          </label>
+          <label class="campo campo-small">
+            <span>Número</span>
+            <input type="text" id="campoNumero" inputmode="numeric" />
+          </label>
+        </div>
+        <div class="form-grid">
+          <label class="campo">
+            <span>Complemento</span>
+            <input type="text" id="campoComplementoEndereco" placeholder="Apto, bloco, casa..." />
+          </label>
+          <label class="campo">
+            <span>Ponto de referência</span>
+            <input type="text" id="campoReferencia" placeholder="Perto de..." />
+          </label>
+        </div>
+        <p class="fora-area-alerta" id="foraAreaAlerta">
+          Poxa, esse bairro ainda não faz parte da nossa área de entrega (Região 5 de Vila Velha).
+          Você pode escolher <strong>Retirada</strong> ou selecionar um bairro atendido.
+        </p>
+      </div>
+
+      <div class="campo">
+        <span>Forma de pagamento</span>
+        <div class="pagamento-opcoes" id="pagamentoOpcoes"></div>
+      </div>
+
+      <label class="campo" id="blocoTroco" hidden>
+        <span>Precisa de troco para quanto?</span>
+        <input type="text" id="campoTroco" inputmode="decimal" placeholder="Ex: R$ 50,00" />
+      </label>
+
+      <div class="resumo-pedido">
+        <h4>Resumo do pedido</h4>
+        <div id="resumoItens"></div>
+        <div class="linha-valor"><span>Subtotal</span><strong id="resumoSubtotal">R$ 0,00</strong></div>
+        <div class="linha-valor"><span>Taxa de entrega</span><strong id="resumoTaxa">R$ 0,00</strong></div>
+        <div class="linha-valor total"><span>Total</span><strong id="resumoTotal">R$ 0,00</strong></div>
+      </div>
+
+      <button type="submit" class="btn btn-whats btn-block" id="btnFinalizarWhats">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><path d="M16 3C9 3 3.2 8.7 3.2 15.7c0 2.5.7 4.8 1.9 6.8L3 29l6.7-2c1.9 1.1 4.1 1.7 6.3 1.7 7 0 12.8-5.7 12.8-12.7C28.8 8.7 23 3 16 3Z" fill="#fff"/><path d="M12.2 10.4c-.3-.7-.6-.7-.9-.7h-.7c-.3 0-.7.1-1 .5-.3.4-1.3 1.3-1.3 3.1 0 1.8 1.3 3.6 1.5 3.8.2.3 2.6 4 6.3 5.4 3.1 1.2 3.7 1 4.4.9.7-.1 2.2-.9 2.5-1.7.3-.9.3-1.6.2-1.8-.1-.2-.4-.3-.8-.5-.4-.2-2.2-1.1-2.6-1.2-.3-.1-.6-.2-.9.2-.3.4-1 1.2-1.2 1.5-.2.3-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.9-2.3-2.1-2.7-.2-.4 0-.6.2-.8.2-.2.4-.4.5-.7.2-.2.2-.4.3-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.3-1.3-3.2Z" fill="#25D366"/></svg>
+        Finalizar pedido pelo WhatsApp
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== TOAST ===================== -->
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
