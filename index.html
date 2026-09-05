@@ -96,7 +96,8 @@
 <section class="cardapio" id="cardapio">
   <div class="wrap">
     <h2>Cardápio</h2>
-    <p class="section-sub">Escolha o tamanho do seu açaí e monte do seu jeito.</p>
+    <p class="section-sub">Escolha a categoria, monte o seu açaí ou escolha o sabor.</p>
+    <nav class="cardapio-abas" id="cardapioAbas"></nav>
     <div class="cardapio-grid" id="cardapioGrid"></div>
   </div>
 </section>
@@ -163,8 +164,8 @@
     <button class="modal-close" id="fecharProdutoModal" aria-label="Fechar">&times;</button>
     <h3 id="produtoModalTitulo"></h3>
     <p id="produtoModalDesc" class="modal-sub"></p>
-    <p class="complemento-info">Escolha até <strong id="qtdGratisTexto">0</strong> complementos grátis. Itens extras têm valor adicional mostrado ao lado.</p>
-    <div id="complementosLista" class="complementos-grid"></div>
+    <p class="complemento-info" id="complementoInfoBox"></p>
+    <div id="modalCorpoDinamico"></div>
 
     <div class="qtd-row">
       <label for="qtdProduto">Quantidade</label>
