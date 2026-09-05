@@ -12,17 +12,20 @@
    * ESTADO GLOBAL
    * --------------------------------------------------------- */
   const state = {
-    cart: [],              // itens do carrinho
+    cart: [],
+    categoriaAtiva: "Todos",
     modal: {
-      produto: null,       // produto sendo montado no modal
-      complementosSelecionados: new Set(),
+      produto: null,
+      complementosSelecionados: new Set(), // usado no tipo "montavel"
+      saborSelecionado: null,              // usado no tipo "sabor-unico"
+      brindeSelecionado: null,             // sabor do brinde grátis (açaí)
       quantidade: 1,
     },
     entrega: {
-      tipo: "entrega",      // "entrega" | "retirada"
-      bairro: null,         // objeto { nome, taxa }
+      tipo: "entrega",
+      bairro: null,
     },
-    pagamento: null,        // id da forma de pagamento
+    pagamento: null,
   };
 
   /* ---------------------------------------------------------
@@ -30,8 +33,8 @@
    * --------------------------------------------------------- */
   const $ = (sel) => document.querySelector(sel);
   const $all = (sel) => Array.from(document.querySelectorAll(sel));
-  const formatBRL = (v) =>
-    "R$ " + v.toFixed(2).replace(".", ",");
+  const formatBRL = (v) => "R$ " + v.toFixed(2).replace(".", ",");
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   function toast(msg) {
     const el = $("#toast");
@@ -39,10 +42,6 @@
     el.classList.add("mostrar");
     clearTimeout(toast._t);
     toast._t = setTimeout(() => el.classList.remove("mostrar"), 2600);
-  }
-
-  function uid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
   /* ---------------------------------------------------------
@@ -61,8 +60,7 @@
   }
 
   function buildWhatsAppLink(text) {
-    const numero = CONFIG.WHATSAPP_NUMBER;
-    return `https://wa.me/${numero}?text=${encodeURIComponent(text)}`;
+    return `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
   }
 
   /* ---------------------------------------------------------
@@ -72,18 +70,44 @@
     const grid = $("#destaqueGrid");
     const destaques = CONFIG.PRODUTOS.filter((p) => p.destaque);
     grid.innerHTML = destaques.map(produtoCardHTML).join("");
-    grid.querySelectorAll("[data-abrir-produto]").forEach((btn) => {
-      btn.addEventListener("click", () => openProdutoModal(btn.dataset.abrirProduto));
-    });
+    ligarBotoesMontar(grid);
   }
 
   /* ---------------------------------------------------------
-   * RENDER: CARDÁPIO COMPLETO
+   * RENDER: ABAS + CARDÁPIO POR CATEGORIA
    * --------------------------------------------------------- */
+  function renderAbasCategoria() {
+    const nav = $("#cardapioAbas");
+    const categorias = ["Todos", ...CONFIG.CATEGORIAS];
+    nav.innerHTML = categorias
+      .map(
+        (c) =>
+          `<button class="aba-cat${c === state.categoriaAtiva ? " active" : ""}" data-cat="${c}">${c}</button>`
+      )
+      .join("");
+
+    nav.querySelectorAll(".aba-cat").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.categoriaAtiva = btn.dataset.cat;
+        renderAbasCategoria();
+        renderCardapio();
+      });
+    });
+  }
+
   function renderCardapio() {
     const grid = $("#cardapioGrid");
-    grid.innerHTML = CONFIG.PRODUTOS.map(produtoCardHTML).join("");
-    grid.querySelectorAll("[data-abrir-produto]").forEach((btn) => {
+    const lista =
+      state.categoriaAtiva === "Todos"
+        ? CONFIG.PRODUTOS
+        : CONFIG.PRODUTOS.filter((p) => p.categoria === state.categoriaAtiva);
+
+    grid.innerHTML = lista.map(produtoCardHTML).join("");
+    ligarBotoesMontar(grid);
+  }
+
+  function ligarBotoesMontar(container) {
+    container.querySelectorAll("[data-abrir-produto]").forEach((btn) => {
       btn.addEventListener("click", () => openProdutoModal(btn.dataset.abrirProduto));
     });
   }
@@ -121,7 +145,7 @@
   }
 
   /* ---------------------------------------------------------
-   * MODAL DE PRODUTO (montar açaí)
+   * MODAL DE PRODUTO
    * --------------------------------------------------------- */
   function openProdutoModal(produtoId) {
     const produto = CONFIG.PRODUTOS.find((p) => p.id === produtoId);
@@ -129,31 +153,19 @@
 
     state.modal.produto = produto;
     state.modal.complementosSelecionados = new Set();
+    state.modal.saborSelecionado = null;
+    state.modal.brindeSelecionado = null;
     state.modal.quantidade = 1;
 
     $("#produtoModalTitulo").textContent = produto.nome;
     $("#produtoModalDesc").textContent = produto.descricao;
-    $("#qtdGratisTexto").textContent = produto.complementosGratis;
     $("#qtdValor").textContent = "1";
 
-    const lista = $("#complementosLista");
-    lista.innerHTML = CONFIG.COMPLEMENTOS.map(
-      (c) => `
-      <div class="complemento-item" data-id="${c.id}" tabindex="0" role="checkbox" aria-checked="false">
-        <span>${c.nome}</span>
-        <span class="preco-extra" data-preco-label>grátis*</span>
-      </div>`
-    ).join("");
-
-    lista.querySelectorAll(".complemento-item").forEach((el) => {
-      el.addEventListener("click", () => toggleComplemento(el.dataset.id));
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          toggleComplemento(el.dataset.id);
-        }
-      });
-    });
+    if (produto.tipo === "montavel") {
+      renderComplementosMontavel(produto);
+    } else {
+      renderSaboresUnicos(produto);
+    }
 
     updateModalTotal();
     $("#produtoModalOverlay").classList.add("aberto");
@@ -163,58 +175,97 @@
     $("#produtoModalOverlay").classList.remove("aberto");
   }
 
+  // ---------- Tipo "montavel" (Açaí: grupos de complementos + brinde) ----------
+  function renderComplementosMontavel(produto) {
+    $("#complementoInfoBox").innerHTML =
+      "Escolha à vontade — todos os itens abaixo já estão inclusos no preço do seu açaí.";
+
+    let html = "";
+    CONFIG.GRUPOS_COMPLEMENTOS_ACAI.forEach((grupo) => {
+      html += `<h4 class="grupo-titulo">${grupo.grupo}</h4>`;
+      html += `<div class="complementos-grid">`;
+      grupo.itens.forEach((item) => {
+        html += `
+          <div class="complemento-item" data-id="${item.id}" tabindex="0" role="checkbox" aria-checked="false">
+            <span>${item.nome}</span>
+            <span class="preco-extra">incluso</span>
+          </div>`;
+      });
+      html += `</div>`;
+    });
+
+    // Brinde promocional
+    if (CONFIG.PROMOCAO_BRINDE_ACAI && CONFIG.PROMOCAO_BRINDE_ACAI.ativa) {
+      html += `<h4 class="grupo-titulo brinde-titulo">🎁 ${CONFIG.PROMOCAO_BRINDE_ACAI.titulo}</h4>`;
+      html += `<div class="sabores-grid" id="brindeGrid">`;
+      CONFIG.PROMOCAO_BRINDE_ACAI.sabores.forEach((sabor) => {
+        html += `<button type="button" class="sabor-item" data-sabor="${sabor}">${sabor}</button>`;
+      });
+      html += `</div>`;
+    }
+
+    $("#modalCorpoDinamico").innerHTML = html;
+
+    $all(".complemento-item").forEach((el) => {
+      el.addEventListener("click", () => toggleComplemento(el.dataset.id));
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggleComplemento(el.dataset.id);
+        }
+      });
+    });
+
+    const brindeGrid = $("#brindeGrid");
+    if (brindeGrid) {
+      brindeGrid.querySelectorAll(".sabor-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.modal.brindeSelecionado = btn.dataset.sabor;
+          brindeGrid.querySelectorAll(".sabor-item").forEach((b) => b.classList.remove("selecionado"));
+          btn.classList.add("selecionado");
+        });
+      });
+    }
+  }
+
   function toggleComplemento(id) {
     const sel = state.modal.complementosSelecionados;
     if (sel.has(id)) sel.delete(id);
     else sel.add(id);
-    refreshComplementosVisual();
+
+    const el = document.querySelector(`.complemento-item[data-id="${id}"]`);
+    if (el) {
+      const marcado = sel.has(id);
+      el.classList.toggle("selecionado", marcado);
+      el.setAttribute("aria-checked", marcado ? "true" : "false");
+    }
     updateModalTotal();
   }
 
-  // Recalcula quais complementos contam como grátis (os primeiros N marcados)
-  // e atualiza o visual/preço de cada item.
-  function refreshComplementosVisual() {
-    const produto = state.modal.produto;
-    const limite = produto.complementosGratis;
-    const selecionadosOrdem = Array.from(state.modal.complementosSelecionados);
+  // ---------- Tipo "sabor-unico" (Sorvete / Sander / Picolé) ----------
+  function renderSaboresUnicos(produto) {
+    $("#complementoInfoBox").innerHTML = `Escolha o sabor do seu ${produto.nome.toLowerCase()}.`;
 
-    $all(".complemento-item").forEach((el) => {
-      const id = el.dataset.id;
-      const comp = CONFIG.COMPLEMENTOS.find((c) => c.id === id);
-      const marcado = state.modal.complementosSelecionados.has(id);
-      el.classList.toggle("selecionado", marcado);
-      el.setAttribute("aria-checked", marcado ? "true" : "false");
-
-      const posicao = selecionadosOrdem.indexOf(id);
-      const label = el.querySelector("[data-preco-label]");
-      if (!marcado) {
-        label.textContent = comp.preco > 0 ? `+ ${formatBRL(comp.preco)}` : "grátis";
-      } else if (posicao < limite) {
-        label.textContent = "incluso ✓";
-      } else {
-        label.textContent = `+ ${formatBRL(comp.preco)}`;
-      }
+    let html = `<div class="sabores-grid">`;
+    produto.sabores.forEach((sabor) => {
+      html += `<button type="button" class="sabor-item" data-sabor="${sabor}">${sabor}</button>`;
     });
-  }
+    html += `</div>`;
+    $("#modalCorpoDinamico").innerHTML = html;
 
-  function calcularPrecoComplementosExtra() {
-    const produto = state.modal.produto;
-    const limite = produto.complementosGratis;
-    const selecionadosOrdem = Array.from(state.modal.complementosSelecionados);
-    let extra = 0;
-    selecionadosOrdem.forEach((id, idx) => {
-      if (idx >= limite) {
-        const comp = CONFIG.COMPLEMENTOS.find((c) => c.id === id);
-        extra += comp.preco;
-      }
+    $all(".sabor-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.modal.saborSelecionado = btn.dataset.sabor;
+        $all(".sabor-item").forEach((b) => b.classList.remove("selecionado"));
+        btn.classList.add("selecionado");
+        updateModalTotal();
+      });
     });
-    return extra;
   }
 
   function updateModalTotal() {
     const produto = state.modal.produto;
-    const extra = calcularPrecoComplementosExtra();
-    const total = (produto.preco + extra) * state.modal.quantidade;
+    const total = produto.preco * state.modal.quantidade;
     $("#produtoModalTotal").textContent = formatBRL(total);
   }
 
@@ -233,29 +284,37 @@
 
   function addAoCarrinho() {
     const produto = state.modal.produto;
-    const limite = produto.complementosGratis;
-    const selecionadosOrdem = Array.from(state.modal.complementosSelecionados);
 
-    const complementos = selecionadosOrdem.map((id, idx) => {
-      const comp = CONFIG.COMPLEMENTOS.find((c) => c.id === id);
-      return {
-        id: comp.id,
-        nome: comp.nome,
-        preco: idx < limite ? 0 : comp.preco,
-      };
-    });
+    if (produto.tipo === "sabor-unico" && !state.modal.saborSelecionado) {
+      toast("Escolha um sabor antes de adicionar ao carrinho.");
+      return;
+    }
 
-    const precoUnitario =
-      produto.preco + complementos.reduce((s, c) => s + c.preco, 0);
+    let descricaoItens = [];
+    if (produto.tipo === "montavel") {
+      const nomes = Array.from(state.modal.complementosSelecionados).map((id) => {
+        for (const grupo of CONFIG.GRUPOS_COMPLEMENTOS_ACAI) {
+          const item = grupo.itens.find((i) => i.id === id);
+          if (item) return item.nome;
+        }
+        return id;
+      });
+      descricaoItens = nomes;
+    } else {
+      descricaoItens = [`Sabor: ${state.modal.saborSelecionado}`];
+    }
+
+    if (state.modal.brindeSelecionado) {
+      descricaoItens.push(`🎁 Brinde: bola de sorvete (${state.modal.brindeSelecionado})`);
+    }
 
     state.cart.push({
       uid: uid(),
       produtoId: produto.id,
       nome: produto.nome,
-      precoBase: produto.preco,
-      complementos,
+      precoUnitario: produto.preco,
+      itens: descricaoItens,
       quantidade: state.modal.quantidade,
-      precoUnitario,
     });
 
     renderCart();
@@ -293,9 +352,7 @@
           <div class="item-info">
             <h4>${item.nome}</h4>
             <div class="item-complementos">${
-              item.complementos.length
-                ? item.complementos.map((c) => c.nome).join(", ")
-                : "Sem complementos"
+              item.itens.length ? item.itens.join(", ") : "Sem complementos"
             }</div>
             <div class="item-linha">
               <div class="item-qtd">
@@ -313,7 +370,6 @@
       $("#btnIrCheckout").disabled = false;
     }
 
-    // listeners dos itens
     container.querySelectorAll(".item-carrinho").forEach((el) => {
       const itemUid = el.dataset.uid;
       el.querySelector("[data-mais]")?.addEventListener("click", () => alterarQtdCarrinho(itemUid, 1));
@@ -348,7 +404,7 @@
 
   function calcularTaxaEntrega() {
     if (state.entrega.tipo === "retirada") return 0;
-    return state.entrega.bairro ? state.entrega.bairro.taxa : null; // null = ainda não definida
+    return state.entrega.bairro ? state.entrega.bairro.taxa : null;
   }
 
   function atualizarValoresCarrinho() {
@@ -356,8 +412,7 @@
     $("#carrinhoSubtotal").textContent = formatBRL(subtotal);
 
     const taxa = calcularTaxaEntrega();
-    $("#carrinhoTaxa").textContent =
-      taxa === null ? "Definida no checkout" : formatBRL(taxa);
+    $("#carrinhoTaxa").textContent = taxa === null ? "Definida no checkout" : formatBRL(taxa);
 
     const total = subtotal + (taxa || 0);
     $("#carrinhoTotal").textContent = formatBRL(total);
@@ -423,7 +478,7 @@
         (item) => `
       <div class="resumo-item-linha">
         <span>${item.quantidade}x ${item.nome}<br><small>${
-          item.complementos.map((c) => c.nome).join(", ") || "Sem complementos"
+          item.itens.join(", ") || "-"
         }</small></span>
         <span>${formatBRL(item.precoUnitario * item.quantidade)}</span>
       </div>`
@@ -453,7 +508,6 @@
         toast("Preencha nome e telefone para continuar.");
         return;
       }
-
       if (!state.pagamento) {
         toast("Escolha a forma de pagamento.");
         return;
@@ -490,9 +544,7 @@
         };
       }
 
-      const troco =
-        state.pagamento === "dinheiro" ? $("#campoTroco").value.trim() : "";
-
+      const troco = state.pagamento === "dinheiro" ? $("#campoTroco").value.trim() : "";
       enviarPedidoWhatsApp({ nome, telefone, endereco, troco });
     });
   }
@@ -510,11 +562,9 @@
 
     state.cart.forEach((item) => {
       msg += `${item.quantidade}x ${item.nome}\n`;
-      if (item.complementos.length) {
-        item.complementos.forEach((c) => {
-          msg += `   - ${c.nome}${c.preco > 0 ? ` (+${formatBRL(c.preco)})` : ""}\n`;
-        });
-      }
+      item.itens.forEach((linha) => {
+        msg += `   - ${linha}\n`;
+      });
       msg += `   Subtotal: ${formatBRL(item.precoUnitario * item.quantidade)}\n`;
     });
 
@@ -538,7 +588,6 @@
     const link = buildWhatsAppLink(msg);
     window.open(link, "_blank");
 
-    // limpa o carrinho após o envio
     state.cart = [];
     renderCart();
     fecharCheckout();
@@ -580,6 +629,7 @@
   function init() {
     initBrand();
     renderDestaques();
+    renderAbasCategoria();
     renderCardapio();
     renderBairros();
     initModalQtdControls();
