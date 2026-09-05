@@ -20,7 +20,7 @@ const CONFIG = {
   // Formato: código do país + DDD + número, SOMENTE dígitos.
   // Exemplo real (NÃO é o número da loja, é só o formato):
   //   "5527996438936"  =>  55 (Brasil) + 27 (DDD) + 996438936
-  WHATSAPP_NUMBER: "+5527996438936", // <-- SUBSTITUA AQUI
+  WHATSAPP_NUMBER: "WHATSAPP_NUMBER", // <-- SUBSTITUA AQUI
 
   // ------------------------------------------------------------
   // 2) IDENTIDADE / TEXTOS GERAIS
@@ -29,7 +29,7 @@ const CONFIG = {
     nome: "Tiburcio Açaí",
     slogan: "Energia, Sabor e Conexão",
     cidade: "Vila Velha - ES",
-    regiaoAtendimento: "Região 5 de Vila Velha - ES",
+    regiaoAtendimento: "Região 5 - Barra Mares, Vila Velha - ES",
     horario: "Todos os dias, das 12h às 22h",
     instagram: "@tiburcioacai",
   },
@@ -41,6 +41,7 @@ const CONFIG = {
   // "taxa" em reais (número). Pedidos só avançam se o bairro
   // escolhido estiver nesta lista (Região 5).
   BAIRROS_ATENDIDOS: [
+    { nome: "Barra Mares", taxa: 5 },
     { nome: "Ataíde de Souza", taxa: 5 },
     { nome: "Cristóvão Colombo", taxa: 5 },
     { nome: "Divino Espírito Santo", taxa: 6 },
@@ -54,78 +55,171 @@ const CONFIG = {
   ],
 
   // ------------------------------------------------------------
-  // 4) PRODUTOS — AÇAÍ (tamanhos e preços)
+  // 4) CATEGORIAS (abas do cardápio, na ordem em que aparecem)
   // ------------------------------------------------------------
-  // "complementosGratis" = quantas opções da lista de
-  // COMPLEMENTOS o cliente pode escolher sem pagar a mais.
-  // Complementos escolhidos além desse número usam o preço
-  // definido em cada complemento (ver seção 5).
+  CATEGORIAS: ["Açaí", "Sorvetes", "Sander", "Picolés"],
+
+  // ------------------------------------------------------------
+  // 5) GRUPOS DE COMPLEMENTOS DO AÇAÍ (Completos / Coberturas / Frutas)
+  // ------------------------------------------------------------
+  // No açaí, todos os itens abaixo são INCLUSOS no preço do copo
+  // (sem cobrança extra) — o cliente escolhe quantos quiser de
+  // cada grupo. Se um dia algum item passar a ser cobrado à
+  // parte, é só adicionar "preco: 2.00" nele (o padrão é 0).
+  GRUPOS_COMPLEMENTOS_ACAI: [
+    {
+      grupo: "Completos",
+      itens: [
+        { id: "leite-po", nome: "Leite em pó" },
+        { id: "granola", nome: "Granola" },
+        { id: "leite-cond", nome: "Leite condensado" },
+        { id: "pacoca", nome: "Paçoca" },
+        { id: "flocos-arroz", nome: "Flocos de arroz" },
+        { id: "sucrilhos", nome: "Sucrilhos" },
+        { id: "ovomaltine", nome: "Ovomaltine" },
+        { id: "neston", nome: "Neston" },
+        { id: "gotas-chocolate", nome: "Gotas de chocolate" },
+        { id: "amendoim", nome: "Amendoim" },
+      ],
+    },
+    {
+      grupo: "Coberturas",
+      itens: [
+        { id: "cob-morango", nome: "Morango" },
+        { id: "cob-chocolate", nome: "Chocolate" },
+        { id: "cob-leite-cond", nome: "Leite condensado" },
+        { id: "cob-maracuja", nome: "Maracujá" },
+        { id: "cob-limao", nome: "Limão" },
+        { id: "cob-caramelo", nome: "Caramelo" },
+        { id: "cob-uva", nome: "Uva" },
+      ],
+    },
+    {
+      grupo: "Frutas",
+      itens: [
+        { id: "fruta-uva", nome: "Uva" },
+        { id: "fruta-morango", nome: "Morango" },
+        { id: "fruta-kiwi", nome: "Kiwi" },
+        { id: "fruta-manga", nome: "Manga" },
+        { id: "fruta-abacaxi", nome: "Abacaxi" },
+        { id: "fruta-banana", nome: "Banana" },
+      ],
+    },
+  ],
+
+  // ------------------------------------------------------------
+  // 6) PROMOÇÃO — brinde ao comprar um açaí
+  // ------------------------------------------------------------
+  // Se "ativa" for true, o cliente escolhe o sabor da bolinha de
+  // sorvete grátis ao montar qualquer açaí. Pra desativar a
+  // promoção, é só trocar para false.
+  PROMOCAO_BRINDE_ACAI: {
+    ativa: true,
+    titulo: "Promoção: ganhe uma bola de sorvete grátis!",
+    sabores: ["Baunilha", "Morango", "Chocolate"],
+  },
+
+  // ------------------------------------------------------------
+  // 7) PRODUTOS
+  // ------------------------------------------------------------
+  // Cada produto tem um "tipo":
+  //
+  //  "montavel"    -> o cliente monta o copo escolhendo itens dos
+  //                   GRUPOS_COMPLEMENTOS_ACAI (usado no Açaí).
+  //
+  //  "sabor-unico" -> o produto já vem pronto (sorvete em pote,
+  //                   sander, picolé) e o cliente só escolhe o
+  //                   sabor na lista "sabores".
+  //
   PRODUTOS: [
+    // ---------------- AÇAÍ ----------------
     {
       id: "acai-300",
       categoria: "Açaí",
+      tipo: "montavel",
       nome: "Açaí 300ml",
       descricao: "Copo tradicional, ideal para uma pausa rápida.",
-      preco: 14.0,
-      complementosGratis: 3,
-      imagem: "acai-300.jpg",
+      preco: 18.0,
       destaque: false,
     },
     {
       id: "acai-500",
       categoria: "Açaí",
+      tipo: "montavel",
       nome: "Açaí 500ml",
       descricao: "O queridinho da galera — tamanho perfeito.",
-      preco: 19.0,
-      complementosGratis: 4,
-      imagem: "acai-500.jpg",
+      preco: 23.99,
       destaque: true,
     },
     {
       id: "acai-700",
       categoria: "Açaí",
+      tipo: "montavel",
       nome: "Açaí 700ml",
       descricao: "Pra quem não brinca em serviço.",
-      preco: 24.0,
-      complementosGratis: 5,
-      imagem: "acai-700.jpg",
+      preco: 29.50,
       destaque: true,
     },
     {
-      id: "acai-1l",
+      id: "acai-1000",
       categoria: "Açaí",
-      nome: "Açaí 1L",
+      tipo: "montavel",
+      nome: "Açaí 1000ml",
       descricao: "Ideal para compartilhar (ou não).",
-      preco: 32.0,
-      complementosGratis: 6,
-      imagem: "acai-1l.jpg",
+      preco: 35.50,
+      destaque: false,
+    },
+
+    // ---------------- SORVETES 1 LITRO ----------------
+    {
+      id: "sorvete-1l",
+      categoria: "Sorvetes",
+      tipo: "sabor-unico",
+      nome: "Sorvete 1 Litro",
+      descricao: "Pote de 1 litro, escolha o sabor.",
+      preco: 25.0,
+      maxSabores: 1,
+      sabores: [
+        "Ninho Trufado",
+        "Napolitano",
+        "Nutella",
+        "Ninho com Pistache",
+        "Açaí",
+        "Kinderovo",
+        "Frutas Vermelhas",
+      ],
+      destaque: true,
+    },
+
+    // ---------------- SANDER ----------------
+    {
+      id: "sander",
+      categoria: "Sander",
+      tipo: "sabor-unico",
+      nome: "Sander",
+      descricao: "Copo de sander, escolha o sabor.",
+      preco: 8.0,
+      maxSabores: 1,
+      sabores: ["Morango", "Açaí com Ninho", "Brigadeiro", "Coco"],
+      destaque: false,
+    },
+
+    // ---------------- PICOLÉS PREMIUM ----------------
+    {
+      id: "picole-premium",
+      categoria: "Picolés",
+      tipo: "sabor-unico",
+      nome: "Picolé Premium",
+      descricao: "Picolé premium, escolha o sabor.",
+      preco: 6.0,
+      maxSabores: 1,
+      sabores: ["Brigadeiro", "Esquimó", "Tentação", "Pé de Moleque"],
       destaque: false,
     },
   ],
 
   // ------------------------------------------------------------
-  // 5) COMPLEMENTOS / ADICIONAIS
-  // ------------------------------------------------------------
-  // "preco": 0 significa que ele nunca é cobrado.
-  // Quando o cliente escolhe mais complementos do que o limite
-  // grátis do produto, os excedentes são cobrados por este preço.
-  COMPLEMENTOS: [
-    { id: "leite-po", nome: "Leite em pó", preco: 2.0 },
-    { id: "leite-cond", nome: "Leite condensado", preco: 2.0 },
-    { id: "granola", nome: "Granola", preco: 2.0 },
-    { id: "banana", nome: "Banana", preco: 2.0 },
-    { id: "morango", nome: "Morango", preco: 3.0 },
-    { id: "pacoca", nome: "Paçoca", preco: 2.0 },
-    { id: "confetes", nome: "Confetes", preco: 2.0 },
-    { id: "coco", nome: "Coco ralado", preco: 2.0 },
-    { id: "nutella", nome: "Nutella", preco: 4.0 },
-    { id: "leite-ninho", nome: "Leite Ninho", preco: 3.0 },
-    { id: "kiwi", nome: "Kiwi", preco: 3.0 },
-    { id: "uva", nome: "Uva", preco: 2.5 },
-  ],
-
-  // ------------------------------------------------------------
-  // 6) FORMAS DE PAGAMENTO
+  // 8) FORMAS DE PAGAMENTO
   // ------------------------------------------------------------
   FORMAS_PAGAMENTO: [
     { id: "pix", nome: "PIX" },
