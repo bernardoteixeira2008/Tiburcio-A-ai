@@ -35,23 +35,30 @@ const CONFIG = {
   },
 
   // ------------------------------------------------------------
-  // 3) BAIRROS ATENDIDOS + TAXA DE ENTREGA
+  // 3) ENTREGA — Região 5 grátis, demais regiões taxa fixa
   // ------------------------------------------------------------
-  // Adicione, remova ou edite bairros e taxas livremente.
-  // "taxa" em reais (número). Pedidos só avançam se o bairro
-  // escolhido estiver nesta lista (Região 5).
-  BAIRROS_ATENDIDOS: [
-    { nome: "Barra Mares", taxa: 5 },
-    { nome: "Ataíde de Souza", taxa: 5 },
-    { nome: "Cristóvão Colombo", taxa: 5 },
-    { nome: "Divino Espírito Santo", taxa: 6 },
-    { nome: "Ilha das Flores", taxa: 6 },
-    { nome: "Nossa Senhora de Fátima", taxa: 6 },
-    { nome: "Nossa Senhora das Graças", taxa: 7 },
-    { nome: "Nossa Senhora da Penha", taxa: 7 },
-    { nome: "Novo México", taxa: 7 },
-    { nome: "Órfãs", taxa: 5 },
-    { nome: "Terra Vermelha", taxa: 8 },
+  // "taxaRegiao5": valor cobrado para bairros da Região 5 (0 = grátis).
+  // "taxaForaRegiao5": valor fixo cobrado para qualquer outro bairro.
+  ENTREGA: {
+    taxaRegiao5: 0,
+    taxaForaRegiao5: 3,
+  },
+
+  // Lista de bairros que fazem parte da Região 5 (entrega grátis).
+  // Adicione ou remova bairros livremente — qualquer bairro que NÃO
+  // estiver nesta lista automaticamente cai na taxa "taxaForaRegiao5".
+  BAIRROS_REGIAO5: [
+    "Barra Mares",
+    "Ataíde de Souza",
+    "Cristóvão Colombo",
+    "Divino Espírito Santo",
+    "Ilha das Flores",
+    "Nossa Senhora de Fátima",
+    "Nossa Senhora das Graças",
+    "Nossa Senhora da Penha",
+    "Novo México",
+    "Órfãs",
+    "Terra Vermelha",
   ],
 
   // ------------------------------------------------------------
@@ -140,6 +147,7 @@ const CONFIG = {
       nome: "Açaí 300ml",
       descricao: "Copo tradicional, ideal para uma pausa rápida.",
       preco: 18.0,
+      imagem: "acai-300.jpg",
       destaque: false,
     },
     {
@@ -149,6 +157,7 @@ const CONFIG = {
       nome: "Açaí 500ml",
       descricao: "O queridinho da galera — tamanho perfeito.",
       preco: 23.99,
+      imagem: "acai-500.jpg",
       destaque: true,
     },
     {
@@ -158,6 +167,7 @@ const CONFIG = {
       nome: "Açaí 700ml",
       descricao: "Pra quem não brinca em serviço.",
       preco: 29.50,
+      imagem: "acai-700.jpg",
       destaque: true,
     },
     {
@@ -167,6 +177,7 @@ const CONFIG = {
       nome: "Açaí 1000ml",
       descricao: "Ideal para compartilhar (ou não).",
       preco: 35.50,
+      imagem: "acai-1000.jpg",
       destaque: false,
     },
 
@@ -178,6 +189,7 @@ const CONFIG = {
       nome: "Sorvete 1 Litro",
       descricao: "Pote de 1 litro, escolha o sabor.",
       preco: 25.0,
+      imagem: "sorvete-1l.jpg",
       maxSabores: 1,
       sabores: [
         "Ninho Trufado",
@@ -199,6 +211,7 @@ const CONFIG = {
       nome: "Sander",
       descricao: "Copo de sander, escolha o sabor.",
       preco: 8.0,
+      imagem: "sander.jpg",
       maxSabores: 1,
       sabores: ["Morango", "Açaí com Ninho", "Brigadeiro", "Coco"],
       destaque: false,
@@ -212,6 +225,7 @@ const CONFIG = {
       nome: "Picolé Premium",
       descricao: "Picolé premium, escolha o sabor.",
       preco: 6.0,
+      imagem: "picole-premium.jpg",
       maxSabores: 1,
       sabores: ["Brigadeiro", "Esquimó", "Tentação", "Pé de Moleque"],
       destaque: false,
