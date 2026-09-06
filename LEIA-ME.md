@@ -65,7 +65,12 @@ Pra adicionar um sabor novo, é só acrescentar o nome na lista `sabores`. Pra c
 ## O que mais dá pra editar em `js/config.js`
 
 - **BRAND** — nome, slogan, cidade, horário, Instagram.
-- **ENTREGA** e **BAIRROS_REGIAO5** — a entrega é **grátis para qualquer bairro da Região 5** (lista em `BAIRROS_REGIAO5`) e tem **taxa fixa de R$ 3,00** para qualquer outro bairro fora dessa lista. Pra mudar esse valor, edite `ENTREGA.taxaForaRegiao5`. Pra adicionar/remover um bairro da Região 5, edite a lista `BAIRROS_REGIAO5`.
+- **ENTREGA**, **BAIRROS_REGIAO5**, **BAIRROS_PROXIMOS** e **BAIRROS_DISTANTES** — a entrega tem 3 faixas de taxa:
+  - **Região 5** (lista em `BAIRROS_REGIAO5`): entrega **grátis**
+  - **Regiões próximas** — área de Itaparica/Jockey (lista em `BAIRROS_PROXIMOS`): taxa fixa de **R$ 4,00**
+  - **Demais regiões** (lista em `BAIRROS_DISTANTES`): taxa fixa de **R$ 8,00**
+  - Se o cliente não achar o bairro dele na lista, pode digitar manualmente — nesse caso é cobrada a taxa de "demais regiões" (R$ 8,00)
+  - Pra mudar os valores das taxas, edite `ENTREGA.taxaProxima` e `ENTREGA.taxaDistante`. Pra mover um bairro de faixa, basta cortar o nome de uma lista e colar em outra.
 - **CATEGORIAS** — controla as abas do cardápio (Açaí | Sorvetes | Sander | Picolés).
 - **FORMAS_PAGAMENTO** — opções mostradas no checkout.
 
@@ -103,7 +108,7 @@ Se quiser usar outro nome de arquivo, é só trocar o valor do campo `imagem` do
 3. **Se for Sorvete/Sander/Picolé**: escolhe o sabor.
 4. Adiciona ao carrinho, pode repetir para outros produtos.
 5. No carrinho, segue para o checkout: **Entrega** ou **Retirada**.
-6. Se for entrega, escolhe o bairro: se for da **Região 5**, entrega **grátis**; qualquer outro bairro, taxa fixa de **R$ 3,00** (o cliente digita o nome do bairro nesse caso). Não existe mais bloqueio por bairro — todo mundo consegue pedir, só muda a taxa.
+6. Se for entrega, escolhe o bairro numa lista já organizada por região: **Região 5** (grátis), **regiões próximas** — Itaparica/Jockey (R$ 4,00), ou **demais regiões** (R$ 8,00). Se o bairro não estiver em nenhuma lista, o cliente digita o nome e paga a taxa de R$ 8,00.
 7. Escolhe a forma de pagamento (se dinheiro, pergunta o troco).
 8. Clica em **"Finalizar pedido pelo WhatsApp"** → mensagem organizada é montada e o WhatsApp abre pronto para enviar.
 
