@@ -181,6 +181,7 @@ button{ font-family: inherit; cursor:pointer; }
 .produto-thumb{
   height: 120px; border-radius: var(--raio-pequeno);
   background: radial-gradient(circle at 30% 30%, var(--dourado-claro), var(--roxo-vivo) 55%, var(--roxo-escuro));
+  background-size: cover; background-position: center;
 }
 .produto-card h3{ font-size:17px; margin-bottom:2px; }
 .produto-card p{ font-size:13px; margin-bottom:6px; }
@@ -189,6 +190,21 @@ button{ font-family: inherit; cursor:pointer; }
 .badge{
   display:inline-block; font-size:11px; font-weight:700; color:#fff;
   background: var(--dourado); padding:3px 9px; border-radius:999px; margin-bottom:4px; width:fit-content;
+}
+
+/* Abas de categoria do cardápio */
+.cardapio-abas{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom: 28px; }
+.aba-cat{
+  border: none; background:#fff; color: var(--roxo-escuro);
+  padding: 11px 22px; border-radius:999px; font-weight:700; font-size:13.5px;
+  font-family: var(--fonte-display);
+  box-shadow: var(--sombra-leve);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+}
+.aba-cat:hover{ transform: translateY(-2px); box-shadow: var(--sombra); }
+.aba-cat.active{
+  background: linear-gradient(135deg, var(--roxo-vivo), var(--rosa));
+  color:#fff; box-shadow: 0 10px 22px -8px rgba(155,47,174,.55);
 }
 
 /* Grade do cardápio (por categoria) */
@@ -273,12 +289,48 @@ button{ font-family: inherit; cursor:pointer; }
 .complementos-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap:10px; margin-bottom: 18px; }
 .complemento-item{
   display:flex; align-items:center; justify-content:space-between; gap:8px;
-  border: 1.5px solid rgba(44,10,51,.14); border-radius: 12px; padding: 10px 12px;
-  font-size: 13px; cursor:pointer; transition: border-color .15s, background .15s;
+  border: none; background: var(--creme); border-radius: 14px; padding: 12px 14px;
+  font-size: 13px; font-weight:600; cursor:pointer;
+  box-shadow: 0 3px 10px -4px rgba(44,10,51,.16);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
 }
-.complemento-item.selecionado{ border-color: var(--roxo-vivo); background: rgba(155,47,174,.07); }
-.complemento-item .preco-extra{ font-size:11px; color: var(--texto-suave); }
-.complemento-item.selecionado .preco-extra{ color: var(--roxo-vivo); font-weight:600; }
+.complemento-item:hover{ transform: translateY(-2px); box-shadow: 0 8px 16px -6px rgba(44,10,51,.26); }
+.complemento-item.selecionado{
+  background: linear-gradient(135deg, var(--roxo-vivo), var(--rosa)); color:#fff;
+  box-shadow: 0 10px 20px -8px rgba(155,47,174,.5);
+}
+.complemento-item .preco-extra{
+  font-size:11px; color: var(--texto-suave); background: rgba(255,255,255,.6);
+  padding: 2px 8px; border-radius:999px;
+}
+.complemento-item.selecionado .preco-extra{ color:#fff; background: rgba(255,255,255,.25); font-weight:700; }
+
+.grupo-titulo{
+  font-size: 14px; font-family: var(--fonte-display); font-weight:600;
+  color: var(--roxo-escuro); margin: 20px 0 10px;
+  padding-bottom: 6px; border-bottom: 2px solid var(--creme);
+}
+.grupo-titulo:first-child{ margin-top:0; }
+.grupo-titulo.brinde-titulo{ color: #a3760f; border-bottom-color: #F0D9A0; }
+
+.sabores-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap:12px; margin-bottom: 16px; }
+.sabor-item{
+  position: relative;
+  border: none; background: var(--creme); color: var(--texto);
+  padding: 14px 14px 14px 42px; border-radius:14px; font-size:13.5px; font-weight:700; text-align:left;
+  box-shadow: 0 3px 10px -4px rgba(44,10,51,.18);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+}
+.sabor-item::before{
+  content: "🍨"; position:absolute; left:14px; top:50%; transform: translateY(-50%);
+  font-size: 15px; filter: grayscale(1) opacity(.55);
+}
+.sabor-item:hover{ transform: translateY(-2px); box-shadow: 0 8px 16px -6px rgba(44,10,51,.28); }
+.sabor-item.selecionado{
+  background: linear-gradient(135deg, var(--roxo-vivo), var(--rosa));
+  color:#fff; box-shadow: 0 10px 20px -8px rgba(155,47,174,.55);
+}
+.sabor-item.selecionado::before{ content: "✓"; filter:none; color:#fff; font-size:14px; }
 
 .qtd-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 18px; }
 .qtd-control{ display:flex; align-items:center; gap:14px; }
@@ -351,6 +403,11 @@ button{ font-family: inherit; cursor:pointer; }
   padding:10px 12px; border-radius:10px; font-size:12.5px; margin: 4px 0 14px;
 }
 .fora-area-alerta.mostrar{ display:block; }
+
+.info-entrega{
+  font-size:12.5px; background: var(--creme); color: var(--texto-suave);
+  padding:9px 12px; border-radius:10px; margin: 4px 0 14px;
+}
 
 .pagamento-opcoes{ display:grid; grid-template-columns: repeat(2,1fr); gap:10px; margin-top:6px; }
 .pagamento-opcao{
