@@ -113,10 +113,13 @@
   }
 
   function produtoCardHTML(p) {
+    const thumb = p.imagem
+      ? `<div class="produto-thumb" style="background-image:url('assets/${p.imagem}')"></div>`
+      : `<div class="produto-thumb" aria-hidden="true"></div>`;
     return `
       <article class="produto-card">
         ${p.destaque ? '<span class="badge">Mais pedido</span>' : ""}
-        <div class="produto-thumb" aria-hidden="true"></div>
+        ${thumb}
         <h3>${p.nome}</h3>
         <p>${p.descricao}</p>
         <div class="produto-footer">
@@ -131,17 +134,26 @@
    * --------------------------------------------------------- */
   function renderBairros() {
     const lista = $("#listaBairros");
-    lista.innerHTML = CONFIG.BAIRROS_ATENDIDOS.map(
-      (b) => `<li>${b.nome} <span class="taxa">${formatBRL(b.taxa)}</span></li>`
+    lista.innerHTML = CONFIG.BAIRROS_REGIAO5.map(
+      (nome) => `<li>${nome} <span class="taxa">Grátis</span></li>`
     ).join("");
 
     const select = $("#campoBairro");
-    CONFIG.BAIRROS_ATENDIDOS.forEach((b) => {
+
+    const grupo = document.createElement("optgroup");
+    grupo.label = "Região 5 — entrega grátis";
+    CONFIG.BAIRROS_REGIAO5.forEach((nome) => {
       const opt = document.createElement("option");
-      opt.value = b.nome;
-      opt.textContent = `${b.nome} — taxa ${formatBRL(b.taxa)}`;
-      select.appendChild(opt);
+      opt.value = nome;
+      opt.textContent = nome;
+      grupo.appendChild(opt);
     });
+    select.appendChild(grupo);
+
+    const optOutro = document.createElement("option");
+    optOutro.value = "__outro__";
+    optOutro.textContent = `Outro bairro (fora da Região 5) — taxa ${formatBRL(CONFIG.ENTREGA.taxaForaRegiao5)}`;
+    select.appendChild(optOutro);
   }
 
   /* ---------------------------------------------------------
@@ -462,10 +474,19 @@
 
   function initBairroSelect() {
     $("#campoBairro").addEventListener("change", (e) => {
-      const nome = e.target.value;
-      const bairro = CONFIG.BAIRROS_ATENDIDOS.find((b) => b.nome === nome) || null;
-      state.entrega.bairro = bairro;
-      $("#foraAreaAlerta").classList.toggle("mostrar", !!nome && !bairro);
+      const valor = e.target.value;
+      const blocoOutro = $("#blocoOutroBairro");
+
+      if (valor === "__outro__") {
+        state.entrega.bairro = { nome: null, taxa: CONFIG.ENTREGA.taxaForaRegiao5 };
+        blocoOutro.hidden = false;
+      } else if (valor) {
+        state.entrega.bairro = { nome: valor, taxa: CONFIG.ENTREGA.taxaRegiao5 };
+        blocoOutro.hidden = true;
+      } else {
+        state.entrega.bairro = null;
+        blocoOutro.hidden = true;
+      }
       renderResumoCheckout();
       atualizarValoresCarrinho();
     });
@@ -515,18 +536,26 @@
 
       let endereco = {};
       if (state.entrega.tipo === "entrega") {
-        const bairroNome = $("#campoBairro").value;
-        const bairro = CONFIG.BAIRROS_ATENDIDOS.find((b) => b.nome === bairroNome);
+        const valorBairro = $("#campoBairro").value;
 
-        if (!bairroNome) {
-          toast("Selecione o bairro para entrega.");
+        if (!valorBairro) {
+          toast("Selecione seu bairro para entrega.");
           return;
         }
-        if (!bairro) {
-          $("#foraAreaAlerta").classList.add("mostrar");
-          toast("Esse bairro está fora da nossa área de entrega (Região 5).");
-          return;
+
+        let nomeBairro, taxa;
+        if (valorBairro === "__outro__") {
+          nomeBairro = $("#campoOutroBairroTexto").value.trim();
+          if (!nomeBairro) {
+            toast("Informe o nome do seu bairro.");
+            return;
+          }
+          taxa = CONFIG.ENTREGA.taxaForaRegiao5;
+        } else {
+          nomeBairro = valorBairro;
+          taxa = CONFIG.ENTREGA.taxaRegiao5;
         }
+
         const enderecoTexto = $("#campoEndereco").value.trim();
         const numero = $("#campoNumero").value.trim();
         if (!enderecoTexto || !numero) {
@@ -535,12 +564,12 @@
         }
 
         endereco = {
-          bairro: bairro.nome,
+          bairro: nomeBairro,
           rua: enderecoTexto,
           numero,
           complemento: $("#campoComplementoEndereco").value.trim(),
           referencia: $("#campoReferencia").value.trim(),
-          taxa: bairro.taxa,
+          taxa,
         };
       }
 
