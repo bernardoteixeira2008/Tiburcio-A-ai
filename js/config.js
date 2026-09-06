@@ -35,30 +35,127 @@ const CONFIG = {
   },
 
   // ------------------------------------------------------------
-  // 3) ENTREGA — Região 5 grátis, demais regiões taxa fixa
+  // 3) ENTREGA — 3 faixas de taxa por região de Vila Velha
   // ------------------------------------------------------------
-  // "taxaRegiao5": valor cobrado para bairros da Região 5 (0 = grátis).
-  // "taxaForaRegiao5": valor fixo cobrado para qualquer outro bairro.
+  // - Região 5 (Grande Jucu): entrega GRÁTIS
+  // - Regiões próximas (área de Itaparica/Jockey): taxa fixa R$ 4,00
+  // - Demais regiões (mais distantes, ex: Praia da Costa): taxa fixa R$ 8,00
   ENTREGA: {
     taxaRegiao5: 0,
-    taxaForaRegiao5: 3,
+    taxaProxima: 4,
+    taxaDistante: 8,
   },
 
-  // Lista de bairros que fazem parte da Região 5 (entrega grátis).
-  // Adicione ou remova bairros livremente — qualquer bairro que NÃO
-  // estiver nesta lista automaticamente cai na taxa "taxaForaRegiao5".
+  // Região 5 — Grande Jucu (entrega GRÁTIS).
+  // Baseado na divisão administrativa da Lei Municipal nº 4.707/2008.
   BAIRROS_REGIAO5: [
-    "Barra Mares",
-    "Ataíde de Souza",
+    "Barra do Jucu",
+    "Balneário Ponta da Fruta",
+    "Barramares",
+    "Brunela",
+    "Cidade da Barra",
+    "Interlagos",
+    "Interlagos I",
+    "Interlagos II",
+    "Jabaeté",
+    "João Goulart",
+    "Morada da Barra",
+    "Morada do Sol",
+    "Morro da Lagoa",
+    "Normília da Cunha",
+    "Nova Ponta da Fruta",
+    "Ponta da Fruta",
+    "Praia dos Recifes",
+    "Riviera da Barra",
+    "Santa Paula I",
+    "Santa Paula II",
+    "São Conrado",
+    "Terra Vermelha",
+    "Ulisses Guimarães",
+    "Vinte e Três de Maio",
+  ],
+
+  // Bairros PRÓXIMOS da Região 5 — área de Itaparica/Jockey (taxa R$ 4,00).
+  BAIRROS_PROXIMOS: [
+    "Coqueiral de Itaparica",
+    "Ilha dos Ayres",
+    "Itapuã",
+    "Jaburuna",
+    "Jockey de Itaparica",
+    "Nova Itaparica",
+    "Residencial Coqueiral",
+  ],
+
+  // Demais bairros de Vila Velha — mais distantes (taxa R$ 8,00).
+  BAIRROS_DISTANTES: [
+    // Região 1 — Centro
+    "Boa Vista I",
+    "Boa Vista II",
+    "Centro de Vila Velha",
     "Cristóvão Colombo",
     "Divino Espírito Santo",
-    "Ilha das Flores",
-    "Nossa Senhora de Fátima",
-    "Nossa Senhora das Graças",
+    "Glória",
+    "Olaria",
+    "Praia da Costa",
+    "Praia das Gaivotas",
+    "Praia de Itaparica",
+    "Soteco",
+    "Vista da Penha",
+    // Região 2 — Grande Ibes
+    "Ibes",
+    "Araçás",
+    "Brisamar",
+    "Cocal",
+    "Darly Santos",
+    "Guaranhuns",
+    "Ilha dos Bentos",
+    "Jardim Asteca",
+    "Jardim Colorado",
+    "Jardim Guadalajara",
+    "Jardim Guaranhuns",
     "Nossa Senhora da Penha",
     "Novo México",
-    "Órfãs",
-    "Terra Vermelha",
+    "Pontal das Garças",
+    "Santa Inês",
+    "Santa Mônica Popular",
+    "Santa Mônica",
+    "Santos Dumont",
+    "Vila Guaranhuns",
+    "Vila Nova",
+    // Região 3 — Grande Aribiri
+    "Aribiri",
+    "Argolas",
+    "Ataíde",
+    "Cavalieri",
+    "Chácara do Conde",
+    "Dom João Batista",
+    "Garoto",
+    "Ilha da Conceição",
+    "Ilha das Flores",
+    "Paul",
+    "Pedra dos Búzios",
+    "Primeiro de Maio",
+    "Sagrada Família",
+    "Santa Rita",
+    "Vila Batista",
+    "Vila Garrido",
+    "Zumbi dos Palmares",
+    // Região 4 — Grande Cobilândia
+    "Alecrim",
+    "Alvorada",
+    "Cobi de Baixo",
+    "Cobi de Cima",
+    "Cobilândia",
+    "Industrial",
+    "Jardim do Vale",
+    "Jardim Marilândia",
+    "Nova América",
+    "Planalto",
+    "Polo Empresarial Novo México",
+    "Rio Marinho",
+    "Santa Clara",
+    "São Torquato",
+    "Vale Encantado",
   ],
 
   // ------------------------------------------------------------
