@@ -140,20 +140,32 @@
 
     const select = $("#campoBairro");
 
-    const grupo = document.createElement("optgroup");
-    grupo.label = "Região 5 — entrega grátis";
-    CONFIG.BAIRROS_REGIAO5.forEach((nome) => {
-      const opt = document.createElement("option");
-      opt.value = nome;
-      opt.textContent = nome;
-      grupo.appendChild(opt);
-    });
-    select.appendChild(grupo);
+    function criarGrupo(label, nomes, taxaTexto) {
+      const grupo = document.createElement("optgroup");
+      grupo.label = `${label} — ${taxaTexto}`;
+      nomes.forEach((nome) => {
+        const opt = document.createElement("option");
+        opt.value = nome;
+        opt.textContent = nome;
+        grupo.appendChild(opt);
+      });
+      select.appendChild(grupo);
+    }
+
+    criarGrupo("Região 5", CONFIG.BAIRROS_REGIAO5, "grátis");
+    criarGrupo("Regiões próximas (Itaparica/Jockey)", CONFIG.BAIRROS_PROXIMOS, formatBRL(CONFIG.ENTREGA.taxaProxima));
+    criarGrupo("Outras regiões", CONFIG.BAIRROS_DISTANTES, formatBRL(CONFIG.ENTREGA.taxaDistante));
 
     const optOutro = document.createElement("option");
     optOutro.value = "__outro__";
-    optOutro.textContent = `Outro bairro (fora da Região 5) — taxa ${formatBRL(CONFIG.ENTREGA.taxaForaRegiao5)}`;
+    optOutro.textContent = `Meu bairro não está na lista — taxa ${formatBRL(CONFIG.ENTREGA.taxaDistante)}`;
     select.appendChild(optOutro);
+  }
+
+  function taxaDoBairro(nome) {
+    if (CONFIG.BAIRROS_REGIAO5.includes(nome)) return CONFIG.ENTREGA.taxaRegiao5;
+    if (CONFIG.BAIRROS_PROXIMOS.includes(nome)) return CONFIG.ENTREGA.taxaProxima;
+    return CONFIG.ENTREGA.taxaDistante;
   }
 
   /* ---------------------------------------------------------
@@ -478,10 +490,10 @@
       const blocoOutro = $("#blocoOutroBairro");
 
       if (valor === "__outro__") {
-        state.entrega.bairro = { nome: null, taxa: CONFIG.ENTREGA.taxaForaRegiao5 };
+        state.entrega.bairro = { nome: null, taxa: CONFIG.ENTREGA.taxaDistante };
         blocoOutro.hidden = false;
       } else if (valor) {
-        state.entrega.bairro = { nome: valor, taxa: CONFIG.ENTREGA.taxaRegiao5 };
+        state.entrega.bairro = { nome: valor, taxa: taxaDoBairro(valor) };
         blocoOutro.hidden = true;
       } else {
         state.entrega.bairro = null;
@@ -550,10 +562,10 @@
             toast("Informe o nome do seu bairro.");
             return;
           }
-          taxa = CONFIG.ENTREGA.taxaForaRegiao5;
+          taxa = CONFIG.ENTREGA.taxaDistante;
         } else {
           nomeBairro = valorBairro;
-          taxa = CONFIG.ENTREGA.taxaRegiao5;
+          taxa = taxaDoBairro(valorBairro);
         }
 
         const enderecoTexto = $("#campoEndereco").value.trim();
