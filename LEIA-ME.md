@@ -74,9 +74,17 @@ Pra adicionar um sabor novo, é só acrescentar o nome na lista `sabores`. Pra c
 - **CATEGORIAS** — controla as abas do cardápio (Açaí | Sorvetes | Sander | Picolés).
 - **FORMAS_PAGAMENTO** — opções mostradas no checkout.
 
-## Como colocar fotos de verdade nos produtos
+## Como colocar fotos de verdade nos produtos e sabores
 
-Cada produto já está preparado para usar uma foto — falta só você subir as imagens. O site procura as fotos dentro de uma pasta chamada `assets/`, com estes nomes exatos:
+Cada produto e cada sabor já estão preparados para usar uma foto — falta só você subir as imagens. O site procura as fotos dentro de uma pasta chamada `assets/`, com estes nomes exatos:
+
+### Foto do banner principal (topo do site)
+
+| O que é | Nome do arquivo esperado |
+|---|---|
+| Foto de destaque do banner | `hero-acai.jpg` |
+
+### Fotos dos produtos (aparecem nos cards do cardápio)
 
 | Produto | Nome do arquivo esperado |
 |---|---|
@@ -88,18 +96,38 @@ Cada produto já está preparado para usar uma foto — falta só você subir as
 | Sander | `sander.jpg` |
 | Picolé Premium | `picole-premium.jpg` |
 
+### Fotos de cada sabor (aparecem dentro do "Montar")
+
+| Sabor | Nome do arquivo esperado |
+|---|---|
+| Sorvete — Ninho Trufado | `sabor-ninho-trufado.jpg` |
+| Sorvete — Napolitano | `sabor-napolitano.jpg` |
+| Sorvete — Nutella | `sabor-nutella.jpg` |
+| Sorvete — Ninho com Pistache | `sabor-ninho-pistache.jpg` |
+| Sorvete — Açaí | `sabor-acai.jpg` |
+| Sorvete — Kinderovo | `sabor-kinderovo.jpg` |
+| Sorvete — Frutas Vermelhas | `sabor-frutas-vermelhas.jpg` |
+| Sander — Morango | `sabor-sander-morango.jpg` |
+| Sander — Açaí com Ninho | `sabor-sander-acai-ninho.jpg` |
+| Sander — Brigadeiro | `sabor-sander-brigadeiro.jpg` |
+| Sander — Coco | `sabor-sander-coco.jpg` |
+| Picolé — Brigadeiro | `sabor-picole-brigadeiro.jpg` |
+| Picolé — Esquimó | `sabor-picole-esquimo.jpg` |
+| Picolé — Tentação | `sabor-picole-tentacao.jpg` |
+| Picolé — Pé de Moleque | `sabor-picole-pe-de-moleque.jpg` |
+
 ### Passo a passo
 
 1. No repositório do GitHub, clique em **"Add file" → "Create new file"**
 2. No campo do nome, digite `assets/placeholder.txt` (isso cria a pasta `assets` automaticamente) e clique em "Commit changes" — só esse primeiro arquivo precisa desse truque, os próximos já vão direto pra pasta
 3. Entre na pasta **`assets`** que acabou de aparecer
 4. Clique em **"Add file" → "Upload files"**
-5. Arraste as fotos dos produtos, **com o nome exatamente igual ao da tabela acima** (você pode renomear a foto no seu computador antes de subir)
+5. Arraste as fotos, **com o nome exatamente igual ao das tabelas acima** (renomeie a foto no seu computador antes de subir)
 6. Clique em **"Commit changes"**
 
-Depois disso, é só recarregar o site — as fotos substituem automaticamente os quadrados coloridos nos cards do cardápio. Se uma foto não for encontrada (nome errado ou não subiu), o quadrado colorido continua aparecendo no lugar dela — não quebra o site.
+Você não precisa subir todas de uma vez — pode ir subindo aos poucos. Se uma foto não for encontrada (nome errado ou ainda não subiu), o quadrado ou bolinha colorida continua aparecendo no lugar dela — não quebra o site.
 
-Se quiser usar outro nome de arquivo, é só trocar o valor do campo `imagem` do produto correspondente no `js/config.js`.
+Se quiser usar outro nome de arquivo, é só trocar o valor do campo `imagem` do produto ou do sabor correspondente no `js/config.js`.
 
 
 
