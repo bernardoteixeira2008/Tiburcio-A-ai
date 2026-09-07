@@ -248,7 +248,7 @@ const CONFIG = {
       nome: "Açaí 300ml",
       descricao: "Copo tradicional, ideal para uma pausa rápida.",
       preco: 18.0,
-      imagem: "acai-300.jpg",
+      imagem: "acai.png",
       destaque: false,
     },
     {
@@ -258,7 +258,7 @@ const CONFIG = {
       nome: "Açaí 500ml",
       descricao: "O queridinho da galera — tamanho perfeito.",
       preco: 23.99,
-      imagem: "acai-500.jpg",
+      imagem: "acai.png",
       destaque: true,
     },
     {
@@ -268,7 +268,7 @@ const CONFIG = {
       nome: "Açaí 700ml",
       descricao: "Pra quem não brinca em serviço.",
       preco: 29.50,
-      imagem: "acai-700.jpg",
+      imagem: "acai.png",
       destaque: true,
     },
     {
@@ -278,7 +278,7 @@ const CONFIG = {
       nome: "Açaí 1000ml",
       descricao: "Ideal para compartilhar (ou não).",
       preco: 35.50,
-      imagem: "acai-1000.jpg",
+      imagem: "acai.png",
       destaque: false,
     },
 
@@ -290,7 +290,7 @@ const CONFIG = {
       nome: "Sorvete 1 Litro",
       descricao: "Pote de 1 litro, escolha o sabor.",
       preco: 25.0,
-      imagem: "sorvete-1l.jpg",
+      imagem: "sorvete-1l.png",
       maxSabores: 1,
       sabores: [
         { nome: "Ninho Trufado", imagem: "sabor-ninho-trufado.png" },
@@ -312,7 +312,7 @@ const CONFIG = {
       nome: "Sander",
       descricao: "Copo de sander, escolha o sabor.",
       preco: 8.0,
-      imagem: "sander.jpg",
+      imagem: "sander.png",
       maxSabores: 1,
       sabores: [
         { nome: "Morango", imagem: "sabor-sander-morango.png" },
@@ -331,7 +331,7 @@ const CONFIG = {
       nome: "Picolé Premium",
       descricao: "Picolé premium, escolha o sabor.",
       preco: 6.0,
-      imagem: "picole-premium.jpg",
+      imagem: "picole-premium.png",
       maxSabores: 1,
       sabores: [
         { nome: "Brigadeiro", imagem: "sabor-picole-brigadeiro.png" },
