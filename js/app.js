@@ -223,7 +223,14 @@
       html += `<h4 class="grupo-titulo brinde-titulo">🎁 ${CONFIG.PROMOCAO_BRINDE_ACAI.titulo}</h4>`;
       html += `<div class="sabores-grid" id="brindeGrid">`;
       CONFIG.PROMOCAO_BRINDE_ACAI.sabores.forEach((sabor) => {
-        html += `<button type="button" class="sabor-item" data-sabor="${sabor}">${sabor}</button>`;
+        const thumb = sabor.imagem
+          ? `<span class="sabor-thumb" style="background-image:url('assets/${sabor.imagem}')"></span>`
+          : `<span class="sabor-thumb sabor-thumb-vazio">🍨</span>`;
+        html += `
+          <button type="button" class="sabor-item" data-sabor="${sabor.nome}">
+            ${thumb}
+            <span class="sabor-nome">${sabor.nome}</span>
+          </button>`;
       });
       html += `</div>`;
     }
