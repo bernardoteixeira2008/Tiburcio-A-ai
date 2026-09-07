@@ -114,7 +114,7 @@
 
   function produtoCardHTML(p) {
     const thumb = p.imagem
-      ? `<div class="produto-thumb" style="background-image:url('assets/${p.imagem}')"></div>`
+      ? `<div class="produto-thumb" style="background-image:url('${p.imagem}')"></div>`
       : `<div class="produto-thumb" aria-hidden="true"></div>`;
     return `
       <article class="produto-card">
@@ -224,7 +224,7 @@
       html += `<div class="sabores-grid" id="brindeGrid">`;
       CONFIG.PROMOCAO_BRINDE_ACAI.sabores.forEach((sabor) => {
         const thumb = sabor.imagem
-          ? `<span class="sabor-thumb" style="background-image:url('assets/${sabor.imagem}')"></span>`
+          ? `<span class="sabor-thumb" style="background-image:url('${sabor.imagem}')"></span>`
           : `<span class="sabor-thumb sabor-thumb-vazio">🍨</span>`;
         html += `
           <button type="button" class="sabor-item" data-sabor="${sabor.nome}">
@@ -280,7 +280,7 @@
     let html = `<div class="sabores-grid">`;
     produto.sabores.forEach((sabor) => {
       const thumb = sabor.imagem
-        ? `<span class="sabor-thumb" style="background-image:url('assets/${sabor.imagem}')"></span>`
+        ? `<span class="sabor-thumb" style="background-image:url('${sabor.imagem}')"></span>`
         : `<span class="sabor-thumb sabor-thumb-vazio">🍨</span>`;
       html += `
         <button type="button" class="sabor-item" data-sabor="${sabor.nome}">
@@ -698,3 +698,4 @@
 
   document.addEventListener("DOMContentLoaded", init);
 })();
+
