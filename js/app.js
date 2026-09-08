@@ -14,6 +14,7 @@
   const state = {
     cart: [],
     categoriaAtiva: "Todos",
+    promocoes: null,
     modal: {
       produto: null,
       complementosSelecionados: new Set(), // usado no tipo "montavel"
@@ -61,6 +62,63 @@
 
   function buildWhatsAppLink(text) {
     return `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+  }
+
+  /* ---------------------------------------------------------
+   * PROMOÇÕES (data/promocoes.json — editável pelo painel)
+   * --------------------------------------------------------- */
+  async function initPromocoes() {
+    try {
+      const res = await fetch("promocoes.json", { cache: "no-store" });
+      if (!res.ok) return;
+      state.promocoes = await res.json();
+    } catch (e) {
+      state.promocoes = null; // painel ainda não configurado, ou site aberto localmente
+    }
+    renderBannerPromocao();
+    renderCombos();
+    atualizarValoresCarrinho();
+  }
+
+  function renderBannerPromocao() {
+    const el = $("#bannerPromocao");
+    const banner = state.promocoes && state.promocoes.banner;
+    if (banner && banner.ativa) {
+      el.innerHTML = `<strong>${banner.titulo}</strong> ${banner.descricao ? "— " + banner.descricao : ""}`;
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+    }
+  }
+
+  function renderCombos() {
+    const section = $("#combosSection");
+    const grid = $("#combosGrid");
+    const combos = (state.promocoes && state.promocoes.combos) || [];
+    const ativos = combos.filter((c) => c.ativa);
+
+    if (ativos.length === 0) {
+      section.hidden = true;
+      return;
+    }
+    section.hidden = false;
+    grid.innerHTML = ativos
+      .map(
+        (c) => `
+      <div class="combo-card">
+        <h3>${c.titulo}</h3>
+        <p>${c.descricao}</p>
+      </div>`
+      )
+      .join("");
+  }
+
+  function calcularDesconto(subtotal) {
+    const d = state.promocoes && state.promocoes.descontoPercentual;
+    if (d && d.ativa && d.percentual > 0) {
+      return subtotal * (d.percentual / 100);
+    }
+    return 0;
   }
 
   /* ---------------------------------------------------------
@@ -449,10 +507,19 @@
     const subtotal = calcularSubtotal();
     $("#carrinhoSubtotal").textContent = formatBRL(subtotal);
 
+    const desconto = calcularDesconto(subtotal);
+    const linhaDesconto = $("#linhaDescontoCarrinho");
+    if (desconto > 0) {
+      $("#carrinhoDesconto").textContent = "- " + formatBRL(desconto);
+      linhaDesconto.hidden = false;
+    } else {
+      linhaDesconto.hidden = true;
+    }
+
     const taxa = calcularTaxaEntrega();
     $("#carrinhoTaxa").textContent = taxa === null ? "Definida no checkout" : formatBRL(taxa);
 
-    const total = subtotal + (taxa || 0);
+    const total = subtotal - desconto + (taxa || 0);
     $("#carrinhoTotal").textContent = formatBRL(total);
   }
 
@@ -533,10 +600,18 @@
       .join("");
 
     const subtotal = calcularSubtotal();
+    const desconto = calcularDesconto(subtotal);
     const taxa = state.entrega.tipo === "retirada" ? 0 : (state.entrega.bairro ? state.entrega.bairro.taxa : 0);
-    const total = subtotal + taxa;
+    const total = subtotal - desconto + taxa;
 
     $("#resumoSubtotal").textContent = formatBRL(subtotal);
+    const linhaDescontoResumo = $("#linhaDescontoResumo");
+    if (desconto > 0) {
+      $("#resumoDesconto").textContent = "- " + formatBRL(desconto);
+      linhaDescontoResumo.hidden = false;
+    } else {
+      linhaDescontoResumo.hidden = true;
+    }
     $("#resumoTaxa").textContent = state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa);
     $("#resumoTotal").textContent = formatBRL(total);
   }
@@ -606,8 +681,9 @@
 
   function enviarPedidoWhatsApp({ nome, telefone, endereco, troco }) {
     const subtotal = calcularSubtotal();
+    const desconto = calcularDesconto(subtotal);
     const taxa = state.entrega.tipo === "retirada" ? 0 : endereco.taxa || 0;
-    const total = subtotal + taxa;
+    const total = subtotal - desconto + taxa;
     const formaPagamento = CONFIG.FORMAS_PAGAMENTO.find((f) => f.id === state.pagamento);
 
     let msg = `Olá! Gostaria de fazer um pedido na ${CONFIG.BRAND.nome} 🍇\n\n`;
@@ -624,6 +700,9 @@
     });
 
     msg += `\n*Subtotal:* ${formatBRL(subtotal)}\n`;
+    if (desconto > 0) {
+      msg += `*Desconto:* - ${formatBRL(desconto)}\n`;
+    }
     msg += `*Taxa de entrega:* ${state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa)}\n`;
     msg += `*Total:* ${formatBRL(total)}\n\n`;
     msg += `*Forma de pagamento:* ${formaPagamento ? formaPagamento.nome : "-"}\n`;
@@ -694,8 +773,8 @@
     initCheckoutSubmit();
     initUiEvents();
     renderCart();
+    initPromocoes();
   }
 
   document.addEventListener("DOMContentLoaded", init);
 })();
-
