@@ -82,6 +82,7 @@
 
   function renderBannerPromocao() {
     const el = $("#bannerPromocao");
+    if (!el) return;
     const banner = state.promocoes && state.promocoes.banner;
     if (banner && banner.ativa) {
       el.innerHTML = `<strong>${banner.titulo}</strong> ${banner.descricao ? "— " + banner.descricao : ""}`;
@@ -94,6 +95,7 @@
   function renderCombos() {
     const section = $("#combosSection");
     const grid = $("#combosGrid");
+    if (!section || !grid) return;
     const combos = (state.promocoes && state.promocoes.combos) || [];
     const ativos = combos.filter((c) => c.ativa);
 
@@ -509,11 +511,13 @@
 
     const desconto = calcularDesconto(subtotal);
     const linhaDesconto = $("#linhaDescontoCarrinho");
-    if (desconto > 0) {
-      $("#carrinhoDesconto").textContent = "- " + formatBRL(desconto);
-      linhaDesconto.hidden = false;
-    } else {
-      linhaDesconto.hidden = true;
+    if (linhaDesconto) {
+      if (desconto > 0) {
+        $("#carrinhoDesconto").textContent = "- " + formatBRL(desconto);
+        linhaDesconto.hidden = false;
+      } else {
+        linhaDesconto.hidden = true;
+      }
     }
 
     const taxa = calcularTaxaEntrega();
@@ -606,11 +610,13 @@
 
     $("#resumoSubtotal").textContent = formatBRL(subtotal);
     const linhaDescontoResumo = $("#linhaDescontoResumo");
-    if (desconto > 0) {
-      $("#resumoDesconto").textContent = "- " + formatBRL(desconto);
-      linhaDescontoResumo.hidden = false;
-    } else {
-      linhaDescontoResumo.hidden = true;
+    if (linhaDescontoResumo) {
+      if (desconto > 0) {
+        $("#resumoDesconto").textContent = "- " + formatBRL(desconto);
+        linhaDescontoResumo.hidden = false;
+      } else {
+        linhaDescontoResumo.hidden = true;
+      }
     }
     $("#resumoTaxa").textContent = state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa);
     $("#resumoTotal").textContent = formatBRL(total);
