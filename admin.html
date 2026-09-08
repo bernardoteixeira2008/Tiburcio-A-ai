@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>Tiburcio Açaí — Painel de Promoções</title>
+  </head>
+  <body>
+    <!-- Netlify Identity: cuida do login com senha do cliente -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <!-- Decap CMS: o painel visual em si -->
+    <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
+
+    <script>
+      if (window.netlifyIdentity) {
+        window.netlifyIdentity.on("init", (user) => {
+          if (!user) {
+            window.netlifyIdentity.on("login", () => {
+              document.location.href = "/admin.html";
+            });
+          }
+        });
+      }
+
+      // Configuração do painel embutida aqui mesmo — não precisa de
+      // arquivo separado nem de pastas.
+      CMS.init({
+        config: {
+          backend: {
+            name: "git-gateway",
+            branch: "main",
+          },
+          media_folder: "assets",
+          public_folder: "/assets",
+          collections: [
+            {
+              name: "promocoes",
+              label: "Promoções",
+              files: [
+                {
+                  file: "promocoes.json",
+                  label: "Promoções do site",
+                  name: "promocoes",
+                  fields: [
+                    {
+                      label: "Faixa de promoção (banner no topo do site)",
+                      name: "banner",
+                      widget: "object",
+                      fields: [
+                        { label: "Ativar banner?", name: "ativa", widget: "boolean", default: false },
+                        { label: "Título", name: "titulo", widget: "string" },
+                        { label: "Descrição", name: "descricao", widget: "text" },
+                      ],
+                    },
+                    {
+                      label: "Desconto percentual automático (aplicado no carrinho)",
+                      name: "descontoPercentual",
+                      widget: "object",
+                      fields: [
+                        { label: "Ativar desconto?", name: "ativa", widget: "boolean", default: false },
+                        { label: "Percentual de desconto (0 a 50)", name: "percentual", widget: "number", min: 0, max: 50, default: 10 },
+                      ],
+                    },
+                    {
+                      label: "Combos / promoções informativas",
+                      name: "combos",
+                      widget: "list",
+                      fields: [
+                        { label: "Ativar este combo?", name: "ativa", widget: "boolean", default: false },
+                        { label: "Título", name: "titulo", widget: "string" },
+                        { label: "Descrição", name: "descricao", widget: "text" },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      });
+    </script>
+  </body>
+</html>

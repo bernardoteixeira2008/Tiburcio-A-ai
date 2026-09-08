@@ -1,0 +1,23 @@
+{
+  "banner": {
+    "ativa": false,
+    "titulo": "🔥 Promoção especial!",
+    "descricao": "Aproveite enquanto dura."
+  },
+  "descontoPercentual": {
+    "ativa": false,
+    "percentual": 10
+  },
+  "combos": [
+    {
+      "ativa": false,
+      "titulo": "Combo Família",
+      "descricao": "2 Açaís de 500ml + 1 Açaí de 300ml + 1 bola de sorvete. Os complementos, coberturas e frutas são os mesmos nos 3 açaís."
+    },
+    {
+      "ativa": false,
+      "titulo": "Leve mais, pague menos",
+      "descricao": "Compre 2 Açaís de 700ml e ganhe 1 Açaí de 500ml grátis."
+    }
+  ]
+}
