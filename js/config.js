@@ -20,7 +20,7 @@ const CONFIG = {
   // Formato: código do país + DDD + número, SOMENTE dígitos.
   // Exemplo real (NÃO é o número da loja, é só o formato):
   //   "5527996438936"  =>  55 (Brasil) + 27 (DDD) + 996438936
-  WHATSAPP_NUMBER: "+5527996438936", // <-- SUBSTITUA AQUI
+  WHATSAPP_NUMBER: "5527996438936", // <-- SUBSTITUA AQUI
 
   // ------------------------------------------------------------
   // 2) IDENTIDADE / TEXTOS GERAIS
