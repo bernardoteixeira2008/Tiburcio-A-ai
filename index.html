@@ -43,6 +43,9 @@
   </div>
 </header>
 
+<!-- ===================== BANNER DE PROMOÇÃO ===================== -->
+<div id="bannerPromocao" class="banner-promocao" hidden></div>
+
 <!-- ===================== HERO ===================== -->
 <section class="hero">
   <div class="hero-glow" aria-hidden="true"></div>
@@ -83,6 +86,15 @@
     <h2>Os mais pedidos</h2>
     <p class="section-sub">Os tamanhos favoritos de quem já provou.</p>
     <div class="destaque-grid" id="destaqueGrid"></div>
+  </div>
+</section>
+
+<!-- ===================== COMBOS / PROMOÇÕES ===================== -->
+<section class="combos" id="combosSection" hidden>
+  <div class="wrap">
+    <h2>Promoções especiais</h2>
+    <p class="section-sub">Peça mencionando o combo pelo WhatsApp na hora de fechar o pedido.</p>
+    <div class="combos-grid" id="combosGrid"></div>
   </div>
 </section>
 
@@ -191,6 +203,7 @@
 
   <div class="drawer-footer">
     <div class="linha-valor"><span>Subtotal</span><strong id="carrinhoSubtotal">R$ 0,00</strong></div>
+    <div class="linha-valor" id="linhaDescontoCarrinho" hidden><span>Desconto</span><strong id="carrinhoDesconto">- R$ 0,00</strong></div>
     <div class="linha-valor"><span>Taxa de entrega</span><strong id="carrinhoTaxa">—</strong></div>
     <div class="linha-valor total"><span>Total</span><strong id="carrinhoTotal">R$ 0,00</strong></div>
     <button class="btn btn-primary btn-block" id="btnIrCheckout" disabled>Continuar para os dados</button>
@@ -273,6 +286,7 @@
         <h4>Resumo do pedido</h4>
         <div id="resumoItens"></div>
         <div class="linha-valor"><span>Subtotal</span><strong id="resumoSubtotal">R$ 0,00</strong></div>
+        <div class="linha-valor" id="linhaDescontoResumo" hidden><span>Desconto</span><strong id="resumoDesconto">- R$ 0,00</strong></div>
         <div class="linha-valor"><span>Taxa de entrega</span><strong id="resumoTaxa">R$ 0,00</strong></div>
         <div class="linha-valor total"><span>Total</span><strong id="resumoTotal">R$ 0,00</strong></div>
       </div>
@@ -290,5 +304,33 @@
 
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
+
+<!-- Netlify Identity: processa convites/confirmação de senha do painel de promoções -->
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<script>
+  if (window.netlifyIdentity) {
+    window.netlifyIdentity.on("init", (user) => {
+      if (!user) {
+        window.netlifyIdentity.on("login", () => {
+          document.location.href = "/admin.html";
+        });
+      }
+    });
+  }
+</script>
+<!-- Netlify Identity: reconhece links de convite/recuperação de senha
+     e redireciona para o painel de promoções (admin.html) -->
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<script>
+  if (window.netlifyIdentity) {
+    window.netlifyIdentity.on("init", (user) => {
+      if (!user) {
+        window.netlifyIdentity.on("login", () => {
+          document.location.href = "/admin.html";
+        });
+      }
+    });
+  }
+</script>
 </body>
 </html>
