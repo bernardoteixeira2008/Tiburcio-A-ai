@@ -262,15 +262,15 @@
   // ---------- Tipo "montavel" (Açaí: grupos de complementos + brinde) ----------
   function renderComplementosMontavel(produto) {
     $("#complementoInfoBox").innerHTML =
-      "Escolha à vontade — todos os itens abaixo já estão inclusos no preço do seu açaí.";
+      "Escolha os complementos — cada grupo tem um limite de quantos itens dá pra marcar.";
 
     let html = "";
     CONFIG.GRUPOS_COMPLEMENTOS_ACAI.forEach((grupo) => {
-      html += `<h4 class="grupo-titulo">${grupo.grupo}</h4>`;
+      html += `<h4 class="grupo-titulo" data-grupo-titulo="${grupo.grupo}">${grupo.grupo} <span class="grupo-limite">(escolha até ${grupo.limite})</span></h4>`;
       html += `<div class="complementos-grid">`;
       grupo.itens.forEach((item) => {
         html += `
-          <div class="complemento-item" data-id="${item.id}" tabindex="0" role="checkbox" aria-checked="false">
+          <div class="complemento-item" data-id="${item.id}" data-grupo="${grupo.grupo}" tabindex="0" role="checkbox" aria-checked="false">
             <span>${item.nome}</span>
             <span class="preco-extra">incluso</span>
           </div>`;
@@ -319,10 +319,40 @@
     }
   }
 
+  // Transforma "Completos" -> "Completo", "Coberturas" -> "Cobertura", etc.
+  function singularGrupo(nomeGrupo) {
+    return nomeGrupo.replace(/s$/i, "");
+  }
+
+  // Descobre a qual grupo (Completos/Coberturas/Frutas) um id de complemento pertence.
+  function grupoDoComplemento(id) {
+    return CONFIG.GRUPOS_COMPLEMENTOS_ACAI.find((g) => g.itens.some((i) => i.id === id));
+  }
+
+  // Conta quantos itens de um grupo específico já estão marcados.
+  function contarSelecionadosDoGrupo(grupoNome) {
+    let count = 0;
+    state.modal.complementosSelecionados.forEach((id) => {
+      const grupo = grupoDoComplemento(id);
+      if (grupo && grupo.grupo === grupoNome) count++;
+    });
+    return count;
+  }
+
   function toggleComplemento(id) {
     const sel = state.modal.complementosSelecionados;
-    if (sel.has(id)) sel.delete(id);
-    else sel.add(id);
+    const grupo = grupoDoComplemento(id);
+
+    if (!sel.has(id)) {
+      // Vai marcar agora — checa se o grupo já bateu o limite.
+      if (grupo && contarSelecionadosDoGrupo(grupo.grupo) >= grupo.limite) {
+        toast(`Você já escolheu o máximo de ${grupo.limite} em "${grupo.grupo}".`);
+        return;
+      }
+      sel.add(id);
+    } else {
+      sel.delete(id);
+    }
 
     const el = document.querySelector(`.complemento-item[data-id="${id}"]`);
     if (el) {
@@ -393,7 +423,9 @@
       const nomes = Array.from(state.modal.complementosSelecionados).map((id) => {
         for (const grupo of CONFIG.GRUPOS_COMPLEMENTOS_ACAI) {
           const item = grupo.itens.find((i) => i.id === id);
-          if (item) return item.nome;
+          // Prefixa com o grupo (ex: "Cobertura: Morango" / "Fruta: Morango")
+          // pra não confundir itens de nomes iguais em grupos diferentes.
+          if (item) return `${singularGrupo(grupo.grupo)}: ${item.nome}`;
         }
         return id;
       });
