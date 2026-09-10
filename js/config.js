@@ -20,7 +20,7 @@ const CONFIG = {
   // Formato: código do país + DDD + número, SOMENTE dígitos.
   // Exemplo real (NÃO é o número da loja, é só o formato):
   //   "5527996438936"  =>  55 (Brasil) + 27 (DDD) + 996438936
-  WHATSAPP_NUMBER: "+5527996438936", // <-- SUBSTITUA AQUI
+  WHATSAPP_NUMBER: "WHATSAPP_NUMBER", // <-- SUBSTITUA AQUI
 
   // ------------------------------------------------------------
   // 2) IDENTIDADE / TEXTOS GERAIS
@@ -173,6 +173,7 @@ const CONFIG = {
   GRUPOS_COMPLEMENTOS_ACAI: [
     {
       grupo: "Completos",
+      limite: 5,
       itens: [
         { id: "leite-po", nome: "Leite em pó" },
         { id: "granola", nome: "Granola" },
@@ -188,6 +189,7 @@ const CONFIG = {
     },
     {
       grupo: "Coberturas",
+      limite: 2,
       itens: [
         { id: "cob-morango", nome: "Morango" },
         { id: "cob-chocolate", nome: "Chocolate" },
@@ -200,6 +202,7 @@ const CONFIG = {
     },
     {
       grupo: "Frutas",
+      limite: 2,
       itens: [
         { id: "fruta-uva", nome: "Uva" },
         { id: "fruta-morango", nome: "Morango" },
