@@ -65,27 +65,40 @@
   }
 
   /* ---------------------------------------------------------
-   * PROMOÇÕES (data/promocoes.json — editável pelo painel)
+   * PROMOÇÕES (Supabase — editável pelo painel admin.html)
    * --------------------------------------------------------- */
+  const SUPABASE_URL = "https://bmsgygpjubdzauxlztth.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_9oiY-0Ys7DjSYqsvVBy9A_0rt_lGiy";
+
   async function initPromocoes() {
     try {
-      const res = await fetch("promocoes.json", { cache: "no-store" });
-      if (!res.ok) return;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?select=*`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Falha ao buscar promoções");
       state.promocoes = await res.json();
     } catch (e) {
-      state.promocoes = null; // painel ainda não configurado, ou site aberto localmente
+      state.promocoes = []; // Supabase fora do ar ou ainda não configurado — segue sem promoção
     }
     renderBannerPromocao();
     renderCombos();
     atualizarValoresCarrinho();
   }
 
+  function promocaoAtiva(id) {
+    return (state.promocoes || []).find((p) => p.id === id && p.ativa);
+  }
+
   function renderBannerPromocao() {
     const el = $("#bannerPromocao");
     if (!el) return;
-    const banner = state.promocoes && state.promocoes.banner;
-    if (banner && banner.ativa) {
-      el.innerHTML = `<strong>${banner.titulo}</strong> ${banner.descricao ? "— " + banner.descricao : ""}`;
+    const desconto = promocaoAtiva("desconto-geral");
+    if (desconto) {
+      el.innerHTML = `<strong>🔥 ${desconto.valor}% de desconto</strong> em todos os pedidos!`;
       el.hidden = false;
     } else {
       el.hidden = true;
@@ -96,8 +109,7 @@
     const section = $("#combosSection");
     const grid = $("#combosGrid");
     if (!section || !grid) return;
-    const combos = (state.promocoes && state.promocoes.combos) || [];
-    const ativos = combos.filter((c) => c.ativa);
+    const ativos = (state.promocoes || []).filter((p) => p.ativa);
 
     if (ativos.length === 0) {
       section.hidden = true;
@@ -106,21 +118,18 @@
     section.hidden = false;
     grid.innerHTML = ativos
       .map(
-        (c) => `
+        (p) => `
       <div class="combo-card">
-        <h3>${c.titulo}</h3>
-        <p>${c.descricao}</p>
+        <h3>${p.nome}</h3>
+        <p>${p.descricao || ""}</p>
       </div>`
       )
       .join("");
   }
 
   function calcularDesconto(subtotal) {
-    const d = state.promocoes && state.promocoes.descontoPercentual;
-    if (d && d.ativa && d.percentual > 0) {
-      return subtotal * (d.percentual / 100);
-    }
-    return 0;
+    const d = promocaoAtiva("desconto-geral");
+    return d && d.valor > 0 ? subtotal * (d.valor / 100) : 0;
   }
 
   /* ---------------------------------------------------------
