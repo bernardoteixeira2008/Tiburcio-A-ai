@@ -68,7 +68,7 @@
    * PROMOÇÕES (Supabase — editável pelo painel admin.html)
    * --------------------------------------------------------- */
   const SUPABASE_URL = "https://bmsgygpjubdzauxlztth.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_9oiY-0Ys7DjSYqsvVBy9A_0rt_lGiy";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtc2d5Z3BqdWJkemF1eGx6dHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjg3NTYsImV4cCI6MjEwNDgwNDc1Nn0.ppi8E0KH_wzoP2OsFgPkSAOgneDMJLKxWQ_Dmi9qMbw";
 
   async function initPromocoes() {
     try {
