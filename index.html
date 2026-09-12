@@ -318,19 +318,5 @@
     });
   }
 </script>
-<!-- Netlify Identity: reconhece links de convite/recuperação de senha
-     e redireciona para o painel de promoções (admin.html) -->
-<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-<script>
-  if (window.netlifyIdentity) {
-    window.netlifyIdentity.on("init", (user) => {
-      if (!user) {
-        window.netlifyIdentity.on("login", () => {
-          document.location.href = "/admin.html";
-        });
-      }
-    });
-  }
-</script>
 </body>
 </html>
