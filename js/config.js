@@ -20,7 +20,7 @@ const CONFIG = {
   // Formato: código do país + DDD + número, SOMENTE dígitos.
   // Exemplo real (NÃO é o número da loja, é só o formato):
   //   "5527996438936"  =>  55 (Brasil) + 27 (DDD) + 996438936
-  WHATSAPP_NUMBER: "5527996438936", // <-- SUBSTITUA AQUI
+  WHATSAPP_NUMBER: "WHATSAPP_NUMBER", // <-- SUBSTITUA AQUI
 
   // ------------------------------------------------------------
   // 2) IDENTIDADE / TEXTOS GERAIS
@@ -282,6 +282,38 @@ const CONFIG = {
       descricao: "Ideal para compartilhar (ou não).",
       preco: 35.50,
       imagem: "acai.png",
+      destaque: false,
+    },
+
+    // ---------------- AÇAÍ CRAVEJADO ----------------
+    {
+      id: "acai-cravejado-500",
+      categoria: "Açaí",
+      tipo: "montavel",
+      nome: "Açaí Cravejado 500ml",
+      descricao: "Açaí especial, mais cravejado de recheio em cada camada.",
+      preco: 39.0,
+      imagem: "acai-cravejado.png",
+      destaque: false,
+    },
+    {
+      id: "acai-cravejado-700",
+      categoria: "Açaí",
+      tipo: "montavel",
+      nome: "Açaí Cravejado 700ml",
+      descricao: "Açaí especial, mais cravejado de recheio em cada camada.",
+      preco: 41.50,
+      imagem: "acai-cravejado.png",
+      destaque: false,
+    },
+    {
+      id: "acai-cravejado-1000",
+      categoria: "Açaí",
+      tipo: "montavel",
+      nome: "Açaí Cravejado 1000ml",
+      descricao: "Açaí especial, mais cravejado de recheio em cada camada.",
+      preco: 49.50,
+      imagem: "acai-cravejado.png",
       destaque: false,
     },
 
