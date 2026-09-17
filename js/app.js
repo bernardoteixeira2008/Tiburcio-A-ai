@@ -105,6 +105,25 @@
     }
   }
 
+  // Gera uma descrição mais natural pra cada promoção, sempre usando o
+  // valor atual configurado no painel (em vez do texto fixo salvo no banco).
+  function descricaoPromocao(p) {
+    switch (p.id) {
+      case "upgrade-tamanho":
+        return `Troque seu açaí de 300ml pelo de 500ml pagando só +${formatBRL(p.valor)}.`;
+      case "trio-300-30":
+        return `Compre 3 Açaís de 300ml e pague só ${formatBRL(p.valor)} no total.`;
+      case "leve2ganhe1-700":
+        return `Compre 2 Açaís de 700ml e ganhe 1 Açaí de 500ml grátis.`;
+      case "leve2ganhe1-500":
+        return `Compre 2 Açaís de 500ml e ganhe 1 Açaí de 300ml grátis.`;
+      case "desconto-geral":
+        return `${p.valor}% de desconto em todos os pedidos.`;
+      default:
+        return p.descricao || "";
+    }
+  }
+
   function renderCombos() {
     const section = $("#combosSection");
     const grid = $("#combosGrid");
@@ -121,7 +140,7 @@
         (p) => `
       <div class="combo-card">
         <h3>${p.nome}</h3>
-        <p>${p.descricao || ""}</p>
+        <p>${descricaoPromocao(p)}</p>
       </div>`
       )
       .join("");
