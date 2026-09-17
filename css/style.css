@@ -329,6 +329,13 @@ button{ font-family: inherit; cursor:pointer; }
 .grupo-titulo:first-child{ margin-top:0; }
 .grupo-titulo.brinde-titulo{ color: #a3760f; border-bottom-color: #F0D9A0; }
 
+.upgrade-promo{
+  background: linear-gradient(135deg, rgba(155,47,174,.1), rgba(214,72,155,.1));
+  border-radius: 12px; padding: 12px 14px; margin: 16px 0;
+}
+.upgrade-check{ display:flex; align-items:center; gap:10px; font-size:13.5px; font-weight:600; color: var(--roxo-escuro); cursor:pointer; }
+.upgrade-check input{ width:18px; height:18px; accent-color: var(--roxo-vivo); flex:none; }
+
 .sabores-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:12px; margin-bottom: 16px; }
 .sabor-item{
   display:flex; align-items:center; gap:10px;
@@ -439,6 +446,10 @@ button{ font-family: inherit; cursor:pointer; }
 .resumo-pedido h4{ font-size:14px; margin-bottom:10px; }
 .resumo-item-linha{ font-size:12.5px; display:flex; justify-content:space-between; margin-bottom:4px; color: var(--texto); }
 .resumo-item-linha small{ display:block; color: var(--texto-suave); font-weight:400; }
+.linha-promo-aplicada{
+  font-size:12px; color: var(--roxo-vivo); font-weight:600; margin: 4px 0 8px;
+  background: rgba(155,47,174,.08); padding:6px 10px; border-radius:8px;
+}
 
 /* ---------- Toast ---------- */
 .toast{
