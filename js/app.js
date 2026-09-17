@@ -132,6 +132,85 @@
     return d && d.valor > 0 ? subtotal * (d.valor / 100) : 0;
   }
 
+  // Soma a quantidade de um produto específico espalhada pelo carrinho
+  // (o cliente pode ter adicionado o mesmo tamanho em "montagens" diferentes).
+  function quantidadeNoCarrinho(produtoId) {
+    return state.cart
+      .filter((i) => i.produtoId === produtoId)
+      .reduce((s, i) => s + i.quantidade, 0);
+  }
+
+  function precoDoProduto(produtoId) {
+    const p = CONFIG.PRODUTOS.find((p) => p.id === produtoId);
+    return p ? p.preco : 0;
+  }
+
+  // Detecta sozinho as promoções por quantidade (trio, leve-2-ganhe-1) e
+  // calcula o desconto + as linhas explicativas pro resumo/WhatsApp.
+  function calcularPromocoesAutomaticas() {
+    let valorDesconto = 0;
+    const linhas = [];
+
+    const qtd300 = quantidadeNoCarrinho("acai-300");
+    const qtd500 = quantidadeNoCarrinho("acai-500");
+    const qtd700 = quantidadeNoCarrinho("acai-700");
+
+    const trio = promocaoAtiva("trio-300-30");
+    if (trio) {
+      const sets = Math.floor(qtd300 / 3);
+      if (sets > 0) {
+        const precoNormal = precoDoProduto("acai-300") * 3;
+        const economiaPorSet = precoNormal - trio.valor;
+        if (economiaPorSet > 0) {
+          const economiaTotal = economiaPorSet * sets;
+          valorDesconto += economiaTotal;
+          linhas.push(`🎉 ${trio.nome} (${sets}x aplicado) — economia de ${formatBRL(economiaTotal)}`);
+        }
+      }
+    }
+
+    const leve700 = promocaoAtiva("leve2ganhe1-700");
+    if (leve700) {
+      const sets = Math.floor(qtd700 / 2);
+      const gratisPossiveis = Math.min(sets, qtd500);
+      if (gratisPossiveis > 0) {
+        const economia = gratisPossiveis * precoDoProduto("acai-500");
+        valorDesconto += economia;
+        linhas.push(`🎉 ${leve700.nome} (${gratisPossiveis}x 500ml grátis) — economia de ${formatBRL(economia)}`);
+      }
+    }
+
+    const leve500 = promocaoAtiva("leve2ganhe1-500");
+    if (leve500) {
+      const sets = Math.floor(qtd500 / 2);
+      const gratisPossiveis = Math.min(sets, qtd300);
+      if (gratisPossiveis > 0) {
+        const economia = gratisPossiveis * precoDoProduto("acai-300");
+        valorDesconto += economia;
+        linhas.push(`🎉 ${leve500.nome} (${gratisPossiveis}x 300ml grátis) — economia de ${formatBRL(economia)}`);
+      }
+    }
+
+    return { valorDesconto, linhas };
+  }
+
+  // Junta o desconto percentual (geral) com as promoções automáticas de
+  // quantidade — usado em todo lugar que precisa do total com desconto.
+  function calcularDescontoTotal(subtotal) {
+    const automaticas = calcularPromocoesAutomaticas();
+    const linhas = [...automaticas.linhas];
+    let valor = automaticas.valorDesconto;
+
+    const geral = promocaoAtiva("desconto-geral");
+    if (geral && geral.valor > 0) {
+      const vGeral = subtotal * (geral.valor / 100);
+      valor += vGeral;
+      linhas.push(`🔥 ${geral.valor}% de desconto geral — economia de ${formatBRL(vGeral)}`);
+    }
+
+    return { valor, linhas };
+  }
+
   /* ---------------------------------------------------------
    * RENDER: PRODUTOS EM DESTAQUE
    * --------------------------------------------------------- */
@@ -248,6 +327,7 @@
     state.modal.complementosSelecionados = new Set();
     state.modal.saborSelecionado = null;
     state.modal.brindeSelecionado = null;
+    state.modal.upgradeAtivo = false;
     state.modal.quantidade = 1;
 
     $("#produtoModalTitulo").textContent = produto.nome;
@@ -304,6 +384,18 @@
       html += `</div>`;
     }
 
+    // Upgrade de tamanho (só aparece no Açaí 300ml, quando a promoção está ativa)
+    const upgrade = produto.id === "acai-300" ? promocaoAtiva("upgrade-tamanho") : null;
+    if (upgrade) {
+      html += `
+        <div class="upgrade-promo" id="upgradePromoBox">
+          <label class="upgrade-check">
+            <input type="checkbox" id="upgradeCheckbox" />
+            <span>🎉 Troque seu açaí de 300ml pelo de 500ml pagando só +${formatBRL(upgrade.valor)}</span>
+          </label>
+        </div>`;
+    }
+
     $("#modalCorpoDinamico").innerHTML = html;
 
     $all(".complemento-item").forEach((el) => {
@@ -324,6 +416,14 @@
           brindeGrid.querySelectorAll(".sabor-item").forEach((b) => b.classList.remove("selecionado"));
           btn.classList.add("selecionado");
         });
+      });
+    }
+
+    const upgradeCheckbox = $("#upgradeCheckbox");
+    if (upgradeCheckbox) {
+      upgradeCheckbox.addEventListener("change", (e) => {
+        state.modal.upgradeAtivo = e.target.checked;
+        updateModalTotal();
       });
     }
   }
@@ -402,7 +502,14 @@
 
   function updateModalTotal() {
     const produto = state.modal.produto;
-    const total = produto.preco * state.modal.quantidade;
+    let precoUnitario = produto.preco;
+
+    if (state.modal.upgradeAtivo) {
+      const upgrade = promocaoAtiva("upgrade-tamanho");
+      if (upgrade) precoUnitario += upgrade.valor;
+    }
+
+    const total = precoUnitario * state.modal.quantidade;
     $("#produtoModalTotal").textContent = formatBRL(total);
   }
 
@@ -447,11 +554,26 @@
       descricaoItens.push(`🎁 Brinde: bola de sorvete (${state.modal.brindeSelecionado})`);
     }
 
+    // Upgrade de tamanho (300ml -> 500ml pagando a diferença configurada)
+    let produtoIdFinal = produto.id;
+    let nomeFinal = produto.nome;
+    let precoFinal = produto.preco;
+
+    if (state.modal.upgradeAtivo) {
+      const upgrade = promocaoAtiva("upgrade-tamanho");
+      if (upgrade) {
+        produtoIdFinal = "acai-500"; // conta como 500ml pra fins de outras promoções por quantidade
+        nomeFinal = "Açaí 500ml";
+        precoFinal = produto.preco + upgrade.valor;
+        descricaoItens.push(`🎉 ${upgrade.nome}: 300ml → 500ml (+${formatBRL(upgrade.valor)})`);
+      }
+    }
+
     state.cart.push({
       uid: uid(),
-      produtoId: produto.id,
-      nome: produto.nome,
-      precoUnitario: produto.preco,
+      produtoId: produtoIdFinal,
+      nome: nomeFinal,
+      precoUnitario: precoFinal,
       itens: descricaoItens,
       quantidade: state.modal.quantidade,
     });
@@ -550,7 +672,7 @@
     const subtotal = calcularSubtotal();
     $("#carrinhoSubtotal").textContent = formatBRL(subtotal);
 
-    const desconto = calcularDesconto(subtotal);
+    const { valor: desconto } = calcularDescontoTotal(subtotal);
     const linhaDesconto = $("#linhaDescontoCarrinho");
     if (linhaDesconto) {
       if (desconto > 0) {
@@ -645,7 +767,7 @@
       .join("");
 
     const subtotal = calcularSubtotal();
-    const desconto = calcularDesconto(subtotal);
+    const { valor: desconto, linhas: linhasPromo } = calcularDescontoTotal(subtotal);
     const taxa = state.entrega.tipo === "retirada" ? 0 : (state.entrega.bairro ? state.entrega.bairro.taxa : 0);
     const total = subtotal - desconto + taxa;
 
@@ -659,6 +781,12 @@
         linhaDescontoResumo.hidden = true;
       }
     }
+
+    const linhasPromoEl = $("#resumoLinhasPromo");
+    if (linhasPromoEl) {
+      linhasPromoEl.innerHTML = linhasPromo.map((l) => `<div class="linha-promo-aplicada">${l}</div>`).join("");
+    }
+
     $("#resumoTaxa").textContent = state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa);
     $("#resumoTotal").textContent = formatBRL(total);
   }
@@ -728,7 +856,7 @@
 
   function enviarPedidoWhatsApp({ nome, telefone, endereco, troco }) {
     const subtotal = calcularSubtotal();
-    const desconto = calcularDesconto(subtotal);
+    const { valor: desconto, linhas: linhasPromo } = calcularDescontoTotal(subtotal);
     const taxa = state.entrega.tipo === "retirada" ? 0 : endereco.taxa || 0;
     const total = subtotal - desconto + taxa;
     const formaPagamento = CONFIG.FORMAS_PAGAMENTO.find((f) => f.id === state.pagamento);
@@ -747,8 +875,14 @@
     });
 
     msg += `\n*Subtotal:* ${formatBRL(subtotal)}\n`;
+    if (linhasPromo.length > 0) {
+      msg += `\n*Promoções aplicadas:*\n`;
+      linhasPromo.forEach((l) => {
+        msg += `${l}\n`;
+      });
+    }
     if (desconto > 0) {
-      msg += `*Desconto:* - ${formatBRL(desconto)}\n`;
+      msg += `*Desconto total:* - ${formatBRL(desconto)}\n`;
     }
     msg += `*Taxa de entrega:* ${state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa)}\n`;
     msg += `*Total:* ${formatBRL(total)}\n\n`;
