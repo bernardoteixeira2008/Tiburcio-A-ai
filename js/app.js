@@ -119,6 +119,8 @@
         return `Compre 2 Açaís de 500ml e ganhe 1 Açaí de 300ml grátis.`;
       case "desconto-geral":
         return `${p.valor}% de desconto em todos os pedidos.`;
+      case "desconto-cravejado":
+        return `${p.valor}% de desconto em qualquer Açaí Cravejado.`;
       default:
         return p.descricao || "";
     }
@@ -171,8 +173,8 @@
     const linhas = [];
 
     const qtd300 = quantidadeNoCarrinho("acai-300");
-    const qtd500 = quantidadeNoCarrinho("acai-500");
-    const qtd700 = quantidadeNoCarrinho("acai-700");
+    const qtd500 = quantidadeNoCarrinho("acai-500") + quantidadeNoCarrinho("acai-cravejado-500");
+    const qtd700 = quantidadeNoCarrinho("acai-700") + quantidadeNoCarrinho("acai-cravejado-700");
 
     const trio = promocaoAtiva("trio-300-30");
     if (trio) {
@@ -225,6 +227,18 @@
       const vGeral = subtotal * (geral.valor / 100);
       valor += vGeral;
       linhas.push(`🔥 ${geral.valor}% de desconto geral — economia de ${formatBRL(vGeral)}`);
+    }
+
+    const cravejado = promocaoAtiva("desconto-cravejado");
+    if (cravejado && cravejado.valor > 0) {
+      const subtotalCravejado = state.cart
+        .filter((i) => i.produtoId.startsWith("acai-cravejado"))
+        .reduce((s, i) => s + i.precoUnitario * i.quantidade, 0);
+      if (subtotalCravejado > 0) {
+        const vCravejado = subtotalCravejado * (cravejado.valor / 100);
+        valor += vCravejado;
+        linhas.push(`🔥 ${cravejado.valor}% de desconto no Açaí Cravejado — economia de ${formatBRL(vCravejado)}`);
+      }
     }
 
     return { valor, linhas };
