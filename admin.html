@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex" />
-<title>Tiburcio Açaí — Painel de Promoções</title>
+<meta name="referrer" content="no-referrer" />
+<title>Tiburcio Açaí — Painel</title>
 <style>
   :root{
     --roxo-escuro:#2C0A33; --roxo-vivo:#9B2FAE; --rosa:#D6489B;
@@ -19,7 +20,8 @@
   .card{ background:#fff; border-radius:18px; padding:28px; max-width:480px; width:100%; box-shadow: 0 12px 30px -12px rgba(44,10,51,.35); }
   h1{ font-size:20px; margin:0 0 6px; color: var(--roxo-escuro); }
   p.sub{ font-size:13px; color: var(--texto-suave); margin:0 0 20px; }
-  input[type="password"]{
+  label.campo{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
+  input[type="email"], input[type="password"]{
     width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid rgba(44,10,51,.2);
     font-size:15px; margin-bottom:14px;
   }
@@ -27,7 +29,12 @@
     width:100%; padding:12px; border-radius:999px; border:none; font-weight:700; font-size:14px;
     background: linear-gradient(135deg, var(--roxo-vivo), var(--rosa)); color:#fff; cursor:pointer;
   }
-  .erro{ color: var(--vermelho); font-size:13px; margin-bottom:10px; display:none; }
+  button.btn:disabled{ opacity:.6; cursor:wait; }
+  .erro{ color: var(--vermelho); font-size:13px; margin:0 0 12px; display:none; }
+  .erro.mostrar{ display:block; }
+
+  .topo-painel{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:4px; }
+  .usuario{ font-size:12px; color: var(--texto-suave); word-break:break-all; }
 
   .promo-item{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -38,11 +45,10 @@
   .promo-info p{ font-size:12px; color: var(--texto-suave); margin:0; }
   .promo-valor{ display:flex; align-items:center; gap:6px; margin-top:6px; }
   .promo-valor input{
-    width:64px; padding:6px 8px; border-radius:8px; border:1.5px solid rgba(44,10,51,.2); font-size:13px;
+    width:72px; padding:6px 8px; border-radius:8px; border:1.5px solid rgba(44,10,51,.2); font-size:13px;
   }
   .promo-valor span{ font-size:12px; color: var(--texto-suave); }
 
-  /* Switch liga/desliga */
   .switch{ position:relative; flex:none; width:48px; height:28px; }
   .switch input{ opacity:0; width:0; height:0; }
   .slider{
@@ -56,146 +62,263 @@
   input:checked + .slider::before{ transform: translateX(20px); }
 
   .status{ text-align:center; font-size:13px; margin-top:16px; min-height:18px; }
-  .status.ok{ color: var(--verde); }
-  .status.erro{ color: var(--vermelho); }
-  .sair{ display:block; text-align:center; margin-top:18px; font-size:12.5px; color: var(--texto-suave); cursor:pointer; text-decoration:underline; }
+  .status.ok{ color: #1e9e57; }
+  .status.erro-status{ color: var(--vermelho); }
+  .sair{ display:block; text-align:center; margin-top:18px; font-size:12.5px; color: var(--texto-suave); cursor:pointer; text-decoration:underline; background:none; border:none; width:100%; }
 </style>
 </head>
 <body>
 
+<!-- ============ TELA DE LOGIN ============ -->
 <div class="card" id="telaLogin">
-  <h1>🍇 Painel de Promoções</h1>
-  <p class="sub">Digite a senha de acesso combinada com o desenvolvedor.</p>
-  <p class="erro" id="erroLogin">Senha incorreta.</p>
-  <input type="password" id="campoSenha" placeholder="Senha" />
-  <button class="btn" id="btnEntrar">Entrar</button>
+  <h1>🍇 Painel Tiburcio Açaí</h1>
+  <p class="sub">Entre com seu e-mail e senha.</p>
+  <p class="erro" id="erroLogin"></p>
+  <form id="formLogin">
+    <label class="campo" for="campoEmail">E-mail</label>
+    <input type="email" id="campoEmail" autocomplete="username" required />
+    <label class="campo" for="campoSenha">Senha</label>
+    <input type="password" id="campoSenha" autocomplete="current-password" required />
+    <button type="submit" class="btn" id="btnEntrar">Entrar</button>
+  </form>
 </div>
 
+<!-- ============ PAINEL ============ -->
 <div class="card" id="telaPainel" style="display:none; max-width:600px;">
-  <h1>🍇 Promoções</h1>
+  <div class="topo-painel">
+    <h1>🍇 Promoções</h1>
+  </div>
+  <p class="usuario" id="textoUsuario"></p>
   <p class="sub">Ative ou desative cada promoção. As mudanças aparecem no site em poucos segundos.</p>
   <div id="listaPromocoes"></div>
   <div class="status" id="statusSalvar"></div>
-  <span class="sair" id="btnSair">Sair</span>
+  <button class="sair" id="btnSair" type="button">Sair</button>
 </div>
 
 <script>
   // ------------------------------------------------------------
-  // CONFIGURAÇÃO — troque a senha aqui quando quiser.
-  // Atenção: essa senha é só uma proteção simples contra acesso
-  // casual (não é criptografada). Não use dado sensível de verdade
-  // protegido por ela.
+  // Este arquivo NÃO guarda nenhuma senha. O acesso é feito com o
+  // login (e-mail + senha) dos usuários criados no Supabase.
+  // A chave abaixo é a chave PÚBLICA do projeto (a mesma do site).
   // ------------------------------------------------------------
-  const SENHA_PAINEL = "Mrxa7090"; // <-- TROQUE ESSA SENHA
-
   const SUPABASE_URL = "https://bmsgygpjubdzauxlztth.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtc2d5Z3BqdWJkemF1eGx6dHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjg3NTYsImV4cCI6MjEwNDgwNDc1Nn0.ppi8E0KH_wzoP2OsFgPkSAOgneDMJLKxWQ_Dmi9qMbw";
-
-  const headers = {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
-  };
+  const CHAVE_SESSAO = "tiburcioPainelSessao";
 
   let promocoes = [];
 
-  document.getElementById("btnEntrar").addEventListener("click", tentarLogin);
-  document.getElementById("campoSenha").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") tentarLogin();
-  });
-  document.getElementById("btnSair").addEventListener("click", () => {
-    sessionStorage.removeItem("painelLogado");
-    location.reload();
-  });
+  const el = (id) => document.getElementById(id);
 
-  function tentarLogin() {
-    const senha = document.getElementById("campoSenha").value;
-    if (senha === SENHA_PAINEL) {
-      sessionStorage.setItem("painelLogado", "1");
-      abrirPainel();
-    } else {
-      document.getElementById("erroLogin").style.display = "block";
+  function esc(texto) {
+    return String(texto ?? "").replace(/[&<>"']/g, (c) => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+  }
+
+  // ---------------- Sessão (login) ----------------
+  function lerSessao() {
+    try { return JSON.parse(localStorage.getItem(CHAVE_SESSAO)); } catch (e) { return null; }
+  }
+  function salvarSessao(s) { localStorage.setItem(CHAVE_SESSAO, JSON.stringify(s)); }
+  function limparSessao() { localStorage.removeItem(CHAVE_SESSAO); }
+
+  // Pede um token novo ao Supabase (por senha ou por refresh_token).
+  async function autenticar(corpo, tipo) {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${tipo}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(corpo),
+    });
+    const dados = await res.json().catch(() => ({}));
+    if (!res.ok || !dados.access_token) {
+      const erro = new Error("falha_login");
+      erro.status = res.status;
+      throw erro;
     }
+    const sessao = {
+      access_token: dados.access_token,
+      refresh_token: dados.refresh_token,
+      expira_em: Date.now() + (Number(dados.expires_in) || 3600) * 1000,
+      email: (dados.user && dados.user.email) || (lerSessao() || {}).email || "",
+    };
+    salvarSessao(sessao);
+    return sessao;
+  }
+
+  // Devolve um token válido (renova sozinho se estiver perto de vencer).
+  async function obterToken() {
+    let s = lerSessao();
+    if (!s || !s.access_token) return null;
+    if (Date.now() > s.expira_em - 60000) {
+      try {
+        s = await autenticar({ refresh_token: s.refresh_token }, "refresh_token");
+      } catch (e) {
+        limparSessao();
+        return null;
+      }
+    }
+    return s.access_token;
+  }
+
+  // ---------------- Telas ----------------
+  function mostrarLogin(mensagem) {
+    el("telaPainel").style.display = "none";
+    el("telaLogin").style.display = "block";
+    const erro = el("erroLogin");
+    if (mensagem) { erro.textContent = mensagem; erro.classList.add("mostrar"); }
+    else { erro.textContent = ""; erro.classList.remove("mostrar"); }
   }
 
   async function abrirPainel() {
-    document.getElementById("telaLogin").style.display = "none";
-    document.getElementById("telaPainel").style.display = "block";
+    const s = lerSessao();
+    el("telaLogin").style.display = "none";
+    el("telaPainel").style.display = "block";
+    el("textoUsuario").textContent = s && s.email ? "Conectado como " + s.email : "";
     await carregarPromocoes();
   }
 
+  // ---------------- Dados ----------------
   async function carregarPromocoes() {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?select=*&order=nome`, { headers });
-    promocoes = await res.json();
-    renderLista();
+    el("statusSalvar").textContent = "";
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?select=*&order=nome`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      });
+      const dados = await res.json();
+      if (!res.ok || !Array.isArray(dados)) throw new Error("falha");
+      promocoes = dados;
+      renderLista();
+    } catch (e) {
+      el("listaPromocoes").innerHTML = "";
+      mostrarStatus("Não consegui carregar as promoções. Confira a internet e recarregue a página.", true);
+    }
   }
 
   function renderLista() {
-    const container = document.getElementById("listaPromocoes");
+    const container = el("listaPromocoes");
     container.innerHTML = promocoes
       .map((p) => {
         const temValor = p.valor !== null && p.valor !== undefined;
         return `
         <div class="promo-item">
           <div class="promo-info">
-            <h3>${p.nome}</h3>
-            <p>${p.descricao || ""}</p>
+            <h3>${esc(p.nome)}</h3>
+            <p>${esc(p.descricao)}</p>
             ${
               temValor
                 ? `<div class="promo-valor">
                      <span>Valor:</span>
-                     <input type="number" step="0.01" data-id="${p.id}" class="campo-valor" value="${p.valor}" />
+                     <input type="number" step="0.01" min="0" data-id="${esc(p.id)}" class="campo-valor" value="${esc(p.valor)}" />
                    </div>`
                 : ""
             }
           </div>
           <label class="switch">
-            <input type="checkbox" data-id="${p.id}" class="campo-ativa" ${p.ativa ? "checked" : ""} />
+            <input type="checkbox" data-id="${esc(p.id)}" class="campo-ativa" ${p.ativa ? "checked" : ""} />
             <span class="slider"></span>
           </label>
         </div>`;
       })
       .join("");
 
-    container.querySelectorAll(".campo-ativa").forEach((el) => {
-      el.addEventListener("change", () => salvarPromocao(el.dataset.id));
+    container.querySelectorAll(".campo-ativa").forEach((campo) => {
+      campo.addEventListener("change", () => salvarPromocao(campo.dataset.id));
     });
-    container.querySelectorAll(".campo-valor").forEach((el) => {
-      el.addEventListener("change", () => salvarPromocao(el.dataset.id));
+    container.querySelectorAll(".campo-valor").forEach((campo) => {
+      campo.addEventListener("change", () => salvarPromocao(campo.dataset.id));
     });
+  }
+
+  function mostrarStatus(texto, ehErro) {
+    const status = el("statusSalvar");
+    status.textContent = texto;
+    status.className = "status" + (ehErro ? " erro-status" : texto ? " ok" : "");
   }
 
   async function salvarPromocao(id) {
     const ativaEl = document.querySelector(`.campo-ativa[data-id="${id}"]`);
     const valorEl = document.querySelector(`.campo-valor[data-id="${id}"]`);
-    const status = document.getElementById("statusSalvar");
 
-    const body = { ativa: ativaEl.checked };
-    if (valorEl) body.valor = parseFloat(valorEl.value);
+    const corpo = { ativa: ativaEl.checked };
+    if (valorEl) {
+      const valor = parseFloat(valorEl.value);
+      if (Number.isNaN(valor) || valor < 0) {
+        mostrarStatus("Digite um valor válido (zero ou maior).", true);
+        return;
+      }
+      if (id.startsWith("desconto") && valor > 50) {
+        mostrarStatus("O desconto em porcentagem vai de 0 a 50.", true);
+        return;
+      }
+      corpo.valor = valor;
+    }
 
-    status.textContent = "Salvando...";
-    status.className = "status";
+    const token = await obterToken();
+    if (!token) {
+      mostrarLogin("Sua sessão expirou. Entre de novo.");
+      return;
+    }
 
+    mostrarStatus("Salvando...", false);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?id=eq.${id}`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?id=eq.${encodeURIComponent(id)}`, {
         method: "PATCH",
-        headers,
-        body: JSON.stringify(body),
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(corpo),
       });
-      if (!res.ok) throw new Error("Erro ao salvar");
-      status.textContent = "✅ Salvo! Já está valendo no site.";
-      status.className = "status ok";
+      const dados = await res.json().catch(() => null);
+      // Se o banco recusar a gravação, ele não dá erro: devolve uma lista vazia.
+      if (!res.ok || !Array.isArray(dados) || dados.length === 0) throw new Error("nao_gravou");
+      mostrarStatus("✅ Salvo! Já está valendo no site.", false);
     } catch (e) {
-      status.textContent = "❌ Não deu pra salvar — confira sua internet e tente de novo.";
-      status.className = "status erro";
+      mostrarStatus("❌ Não consegui salvar. Recarregue a página e entre de novo.", true);
     }
   }
 
-  // Mantém logado durante a sessão do navegador
-  if (sessionStorage.getItem("painelLogado") === "1") {
-    abrirPainel();
-  }
+  // ---------------- Eventos ----------------
+  el("formLogin").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const botao = el("btnEntrar");
+    botao.disabled = true;
+    botao.textContent = "Entrando...";
+    try {
+      await autenticar({ email: el("campoEmail").value.trim(), password: el("campoSenha").value }, "password");
+      el("campoSenha").value = "";
+      await abrirPainel();
+    } catch (erro) {
+      const mensagem = erro.status === 400 || erro.status === 401
+        ? "E-mail ou senha incorretos."
+        : "Não consegui entrar agora. Confira a internet e tente de novo.";
+      mostrarLogin(mensagem);
+    } finally {
+      botao.disabled = false;
+      botao.textContent = "Entrar";
+    }
+  });
+
+  el("btnSair").addEventListener("click", async () => {
+    const s = lerSessao();
+    limparSessao();
+    if (s && s.access_token) {
+      fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${s.access_token}` },
+      }).catch(() => {});
+    }
+    mostrarLogin("");
+  });
+
+  // ---------------- Início ----------------
+  (async function iniciar() {
+    const token = await obterToken();
+    if (token) await abrirPainel();
+    else mostrarLogin("");
+  })();
 </script>
 </body>
 </html>
