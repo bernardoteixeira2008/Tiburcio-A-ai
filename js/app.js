@@ -37,6 +37,20 @@
   const formatBRL = (v) => "R$ " + v.toFixed(2).replace(".", ",");
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+  // Escapa texto vindo do banco antes de colocar em HTML (protege o site
+  // caso alguém digite símbolos como < > " no nome de um produto).
+  function esc(texto) {
+    return String(texto ?? "").replace(/[&<>"']/g, (c) => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+  }
+
+  // Só aceita endereço de imagem "limpo" (sem aspas, espaços ou parênteses).
+  function urlSegura(valor) {
+    const v = String(valor ?? "").trim();
+    return v && /^[A-Za-z0-9_\-./:%@?=&+~#]+$/.test(v) ? v : "";
+  }
+
   function toast(msg) {
     const el = $("#toast");
     el.textContent = msg;
@@ -141,8 +155,8 @@
       .map(
         (p) => `
       <div class="combo-card">
-        <h3>${p.nome}</h3>
-        <p>${descricaoPromocao(p)}</p>
+        <h3>${esc(p.nome)}</h3>
+        <p>${esc(descricaoPromocao(p))}</p>
       </div>`
       )
       .join("");
@@ -245,6 +259,163 @@
   }
 
   /* ---------------------------------------------------------
+   * CATÁLOGO (Supabase: produtos, categorias, sabores)
+   * Ordem de preferência: banco -> última cópia salva no aparelho
+   * -> produtos do js/config.js. O site nunca fica sem cardápio.
+   * --------------------------------------------------------- */
+  const CHAVE_CACHE_CATALOGO = "tiburcioCatalogoV1";
+  const ESPERA_MAXIMA_CATALOGO_MS = 3000;
+
+  // <catalogo>
+  // Transforma as linhas do banco no mesmo formato que o site já usava no config.js.
+  function montarCatalogo(linhas) {
+    const lista = (v) => (Array.isArray(v) ? v : []);
+    const porOrdem = (a, b) => (a.ordem || 0) - (b.ordem || 0);
+
+    const categoriasBanco = lista(linhas.categorias).filter((c) => c.ativa !== false).sort(porOrdem);
+    const catPorId = new Map(categoriasBanco.map((c) => [c.id, c]));
+
+    const opcoesPorGrupo = new Map();
+    lista(linhas.opcoes)
+      .filter((o) => o.ativa !== false)
+      .sort(porOrdem)
+      .forEach((o) => {
+        if (!opcoesPorGrupo.has(o.grupo_id)) opcoesPorGrupo.set(o.grupo_id, []);
+        opcoesPorGrupo.get(o.grupo_id).push(o);
+      });
+
+    const grupoPorId = new Map(lista(linhas.grupos).map((g) => [g.id, g]));
+
+    const gruposPorProduto = new Map();
+    lista(linhas.produto_grupos)
+      .sort(porOrdem)
+      .forEach((v) => {
+        if (!gruposPorProduto.has(v.produto_id)) gruposPorProduto.set(v.produto_id, []);
+        gruposPorProduto.get(v.produto_id).push(v.grupo_id);
+      });
+
+    const produtos = [];
+    lista(linhas.produtos)
+      .filter((p) => p.ativo !== false && catPorId.has(p.categoria_id))
+      .sort((a, b) => {
+        const diferencaCategoria = (catPorId.get(a.categoria_id).ordem || 0) - (catPorId.get(b.categoria_id).ordem || 0);
+        return diferencaCategoria || porOrdem(a, b);
+      })
+      .forEach((p) => {
+        const cat = catPorId.get(p.categoria_id);
+        const base = {
+          id: p.id,
+          categoria: cat.nome,
+          nome: p.nome,
+          descricao: p.descricao || "",
+          preco: Number(p.preco),
+          imagem: p.imagem || "",
+          destaque: !!p.destaque,
+        };
+        if (!Number.isFinite(base.preco) || base.preco < 0) return;
+
+        const gruposDoItem = (gruposPorProduto.get(p.id) || []).map((gid) => grupoPorId.get(gid)).filter(Boolean);
+
+        if (cat.modelo === "monta") {
+          const grupos = gruposDoItem
+            .map((g) => ({
+              grupo: g.nome,
+              limite: g.maximo === null || g.maximo === undefined ? null : Number(g.maximo),
+              itens: (opcoesPorGrupo.get(g.id) || []).map((o) => ({ id: o.id, nome: o.nome })),
+            }))
+            .filter((g) => g.itens.length > 0);
+          produtos.push({ ...base, tipo: "montavel", grupos });
+        } else if (cat.modelo === "sabores") {
+          const g = gruposDoItem[0];
+          const sabores = g ? (opcoesPorGrupo.get(g.id) || []).map((o) => ({ nome: o.nome, imagem: o.imagem || "" })) : [];
+          if (sabores.length === 0) return; // produto de sabor sem nenhum sabor não dá pra pedir
+          produtos.push({ ...base, tipo: "sabor-unico", maxSabores: Number(g.maximo) || 1, sabores });
+        }
+        // outros modelos (ainda não suportados) ficam de fora
+      });
+
+    const categorias = categoriasBanco.map((c) => c.nome).filter((nome) => produtos.some((p) => p.categoria === nome));
+    return produtos.length > 0 ? { categorias, produtos } : null;
+  }
+  // </catalogo>
+
+  function lerCacheCatalogo() {
+    try {
+      const c = JSON.parse(localStorage.getItem(CHAVE_CACHE_CATALOGO));
+      return c && Array.isArray(c.produtos) && Array.isArray(c.categorias) && c.produtos.length ? c : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function salvarCacheCatalogo(catalogo) {
+    try {
+      localStorage.setItem(CHAVE_CACHE_CATALOGO, JSON.stringify(catalogo));
+    } catch (e) {
+      /* sem espaço no aparelho: tudo bem, só não guarda a cópia */
+    }
+  }
+
+  function aplicarCatalogo(catalogo) {
+    CONFIG.CATEGORIAS = catalogo.categorias;
+    CONFIG.PRODUTOS = catalogo.produtos;
+  }
+
+  async function buscarCatalogoDoBanco() {
+    const tabelas = ["categorias", "produtos", "grupos", "opcoes", "produto_grupos"];
+    try {
+      const respostas = await Promise.all(
+        tabelas.map((t) =>
+          fetch(`${SUPABASE_URL}/rest/v1/${t}?select=*`, {
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+            cache: "no-store",
+          })
+        )
+      );
+      if (respostas.some((r) => !r.ok)) return null;
+      const dados = await Promise.all(respostas.map((r) => r.json()));
+      if (dados.some((d) => !Array.isArray(d))) return null;
+      return montarCatalogo(Object.fromEntries(tabelas.map((t, i) => [t, dados[i]])));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Escolhe o catálogo que o site vai mostrar.
+  async function iniciarCatalogo() {
+    const busca = buscarCatalogoDoBanco();
+    const espera = new Promise((resolve) => setTimeout(() => resolve("tempo"), ESPERA_MAXIMA_CATALOGO_MS));
+    const resultado = await Promise.race([busca, espera]);
+
+    if (resultado && resultado !== "tempo") {
+      salvarCacheCatalogo(resultado);
+      aplicarCatalogo(resultado);
+      return;
+    }
+
+    // O banco falhou ou demorou: usa a última cópia salva (se houver). Sem cópia, fica o config.js.
+    const copia = lerCacheCatalogo();
+    if (copia) aplicarCatalogo(copia);
+
+    // Se só demorou, atualiza a tela quando a resposta chegar.
+    if (resultado === "tempo") {
+      busca.then((catalogo) => {
+        if (catalogo) {
+          salvarCacheCatalogo(catalogo);
+          aplicarCatalogo(catalogo);
+          renderCatalogo();
+        }
+      });
+    }
+  }
+
+  function renderCatalogo() {
+    renderDestaques();
+    renderAbasCategoria();
+    renderCardapio();
+  }
+
+  /* ---------------------------------------------------------
    * RENDER: PRODUTOS EM DESTAQUE
    * --------------------------------------------------------- */
   function renderDestaques() {
@@ -260,10 +431,12 @@
   function renderAbasCategoria() {
     const nav = $("#cardapioAbas");
     const categorias = ["Todos", ...CONFIG.CATEGORIAS];
+    // Se a aba escolhida deixou de existir (ex.: categoria desativada), volta pra "Todos".
+    if (!categorias.includes(state.categoriaAtiva)) state.categoriaAtiva = "Todos";
     nav.innerHTML = categorias
       .map(
         (c) =>
-          `<button class="aba-cat${c === state.categoriaAtiva ? " active" : ""}" data-cat="${c}">${c}</button>`
+          `<button class="aba-cat${c === state.categoriaAtiva ? " active" : ""}" data-cat="${esc(c)}">${esc(c)}</button>`
       )
       .join("");
 
@@ -294,18 +467,19 @@
   }
 
   function produtoCardHTML(p) {
-    const thumb = p.imagem
-      ? `<div class="produto-thumb" style="background-image:url('${p.imagem}')"></div>`
+    const imagem = urlSegura(p.imagem);
+    const thumb = imagem
+      ? `<div class="produto-thumb" style="background-image:url('${imagem}')"></div>`
       : `<div class="produto-thumb" aria-hidden="true"></div>`;
     return `
       <article class="produto-card">
         ${p.destaque ? '<span class="badge">Mais pedido</span>' : ""}
         ${thumb}
-        <h3>${p.nome}</h3>
-        <p>${p.descricao}</p>
+        <h3>${esc(p.nome)}</h3>
+        <p>${esc(p.descricao)}</p>
         <div class="produto-footer">
           <span class="produto-preco">${formatBRL(p.preco)}</span>
-          <button class="btn btn-primary" data-abrir-produto="${p.id}">Montar</button>
+          <button class="btn btn-primary" data-abrir-produto="${esc(p.id)}">Montar</button>
         </div>
       </article>`;
   }
@@ -387,13 +561,16 @@
       "Escolha os complementos — cada grupo tem um limite de quantos itens dá pra marcar.";
 
     let html = "";
-    CONFIG.GRUPOS_COMPLEMENTOS_ACAI.forEach((grupo) => {
-      html += `<h4 class="grupo-titulo" data-grupo-titulo="${grupo.grupo}">${grupo.grupo} <span class="grupo-limite">(escolha até ${grupo.limite})</span></h4>`;
+    gruposDoProduto(produto).forEach((grupo) => {
+      const textoLimite = grupo.limite === null || grupo.limite === undefined
+        ? "(escolha quantos quiser)"
+        : `(escolha até ${grupo.limite})`;
+      html += `<h4 class="grupo-titulo" data-grupo-titulo="${esc(grupo.grupo)}">${esc(grupo.grupo)} <span class="grupo-limite">${textoLimite}</span></h4>`;
       html += `<div class="complementos-grid">`;
       grupo.itens.forEach((item) => {
         html += `
-          <div class="complemento-item" data-id="${item.id}" data-grupo="${grupo.grupo}" tabindex="0" role="checkbox" aria-checked="false">
-            <span>${item.nome}</span>
+          <div class="complemento-item" data-id="${esc(item.id)}" data-grupo="${esc(grupo.grupo)}" tabindex="0" role="checkbox" aria-checked="false">
+            <span>${esc(item.nome)}</span>
             <span class="preco-extra">incluso</span>
           </div>`;
       });
@@ -468,15 +645,20 @@
 
   // Descobre a qual grupo (Completos/Coberturas/Frutas) um id de complemento pertence.
   function grupoDoComplemento(id) {
-    return CONFIG.GRUPOS_COMPLEMENTOS_ACAI.find((g) => g.itens.some((i) => i.id === id));
+    return gruposDoProduto(state.modal.produto).find((g) => g.itens.some((i) => i.id === id));
+  }
+
+  // Grupos de complementos do produto: os do banco (um conjunto por produto)
+  // ou, se o produto veio do config.js, a lista geral do açaí.
+  function gruposDoProduto(produto) {
+    return (produto && produto.grupos) || CONFIG.GRUPOS_COMPLEMENTOS_ACAI;
   }
 
   // Conta quantos itens de um grupo específico já estão marcados.
-  function contarSelecionadosDoGrupo(grupoNome) {
+  function contarSelecionadosDoGrupo(grupoAlvo) {
     let count = 0;
     state.modal.complementosSelecionados.forEach((id) => {
-      const grupo = grupoDoComplemento(id);
-      if (grupo && grupo.grupo === grupoNome) count++;
+      if (grupoDoComplemento(id) === grupoAlvo) count++;
     });
     return count;
   }
@@ -487,7 +669,8 @@
 
     if (!sel.has(id)) {
       // Vai marcar agora — checa se o grupo já bateu o limite.
-      if (grupo && contarSelecionadosDoGrupo(grupo.grupo) >= grupo.limite) {
+      const temLimite = grupo && grupo.limite !== null && grupo.limite !== undefined;
+      if (temLimite && contarSelecionadosDoGrupo(grupo) >= grupo.limite) {
         toast(`Você já escolheu o máximo de ${grupo.limite} em "${grupo.grupo}".`);
         return;
       }
@@ -496,7 +679,7 @@
       sel.delete(id);
     }
 
-    const el = document.querySelector(`.complemento-item[data-id="${id}"]`);
+    const el = $all(".complemento-item").find((e) => e.dataset.id === id);
     if (el) {
       const marcado = sel.has(id);
       el.classList.toggle("selecionado", marcado);
@@ -507,17 +690,18 @@
 
   // ---------- Tipo "sabor-unico" (Sorvete / Sander / Picolé) ----------
   function renderSaboresUnicos(produto) {
-    $("#complementoInfoBox").innerHTML = `Escolha o sabor do seu ${produto.nome.toLowerCase()}.`;
+    $("#complementoInfoBox").innerHTML = `Escolha o sabor do seu ${esc(produto.nome.toLowerCase())}.`;
 
     let html = `<div class="sabores-grid">`;
     produto.sabores.forEach((sabor) => {
-      const thumb = sabor.imagem
-        ? `<span class="sabor-thumb" style="background-image:url('${sabor.imagem}')"></span>`
+      const imagem = urlSegura(sabor.imagem);
+      const thumb = imagem
+        ? `<span class="sabor-thumb" style="background-image:url('${imagem}')"></span>`
         : `<span class="sabor-thumb sabor-thumb-vazio">🍨</span>`;
       html += `
-        <button type="button" class="sabor-item" data-sabor="${sabor.nome}">
+        <button type="button" class="sabor-item" data-sabor="${esc(sabor.nome)}">
           ${thumb}
-          <span class="sabor-nome">${sabor.nome}</span>
+          <span class="sabor-nome">${esc(sabor.nome)}</span>
         </button>`;
     });
     html += `</div>`;
@@ -570,7 +754,7 @@
     let descricaoItens = [];
     if (produto.tipo === "montavel") {
       const nomes = Array.from(state.modal.complementosSelecionados).map((id) => {
-        for (const grupo of CONFIG.GRUPOS_COMPLEMENTOS_ACAI) {
+        for (const grupo of gruposDoProduto(produto)) {
           const item = grupo.itens.find((i) => i.id === id);
           // Prefixa com o grupo (ex: "Cobertura: Morango" / "Fruta: Morango")
           // pra não confundir itens de nomes iguais em grupos diferentes.
@@ -644,9 +828,9 @@
         <div class="item-carrinho" data-uid="${item.uid}">
           <div class="item-thumb" aria-hidden="true"></div>
           <div class="item-info">
-            <h4>${item.nome}</h4>
+            <h4>${esc(item.nome)}</h4>
             <div class="item-complementos">${
-              item.itens.length ? item.itens.join(", ") : "Sem complementos"
+              item.itens.length ? esc(item.itens.join(", ")) : "Sem complementos"
             }</div>
             <div class="item-linha">
               <div class="item-qtd">
@@ -791,8 +975,8 @@
       .map(
         (item) => `
       <div class="resumo-item-linha">
-        <span>${item.quantidade}x ${item.nome}<br><small>${
-          item.itens.join(", ") || "-"
+        <span>${item.quantidade}x ${esc(item.nome)}<br><small>${
+          esc(item.itens.join(", ")) || "-"
         }</small></span>
         <span>${formatBRL(item.precoUnitario * item.quantidade)}</span>
       </div>`
@@ -817,7 +1001,7 @@
 
     const linhasPromoEl = $("#resumoLinhasPromo");
     if (linhasPromoEl) {
-      linhasPromoEl.innerHTML = linhasPromo.map((l) => `<div class="linha-promo-aplicada">${l}</div>`).join("");
+      linhasPromoEl.innerHTML = linhasPromo.map((l) => `<div class="linha-promo-aplicada">${esc(l)}</div>`).join("");
     }
 
     $("#resumoTaxa").textContent = state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa);
@@ -976,9 +1160,6 @@
    * --------------------------------------------------------- */
   function init() {
     initBrand();
-    renderDestaques();
-    renderAbasCategoria();
-    renderCardapio();
     renderBairros();
     initModalQtdControls();
     initPagamentoOpcoes();
@@ -988,6 +1169,15 @@
     initUiEvents();
     renderCart();
     initPromocoes();
+
+    // Cardápio: mostra "carregando" enquanto busca no banco e depois desenha.
+    // Se algo falhar, desenha mesmo assim com a cópia salva ou com o config.js.
+    const carregando = '<p style="color:#6b5a70;font-size:14px;">Carregando cardápio…</p>';
+    $("#destaqueGrid").innerHTML = carregando;
+    $("#cardapioGrid").innerHTML = carregando;
+    iniciarCatalogo()
+      .catch(() => {})
+      .then(renderCatalogo);
   }
 
   document.addEventListener("DOMContentLoaded", init);
