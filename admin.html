@@ -9,315 +9,940 @@
 <style>
   :root{
     --roxo-escuro:#2C0A33; --roxo-vivo:#9B2FAE; --rosa:#D6489B;
-    --creme:#FBF3E7; --texto:#241226; --texto-suave:#6b5a70; --verde:#2ecc71; --vermelho:#e74c3c;
+    --creme:#FBF3E7; --texto:#241226; --suave:#6b5a70; --verde:#2ecc71; --vermelho:#d93a2b; --linha:rgba(44,10,51,.1);
   }
   *{ box-sizing:border-box; }
-  body{
-    margin:0; font-family: system-ui, -apple-system, sans-serif; background: var(--creme);
-    color: var(--texto); min-height:100vh; display:flex; align-items:center; justify-content:center;
-    padding: 24px;
-  }
-  .card{ background:#fff; border-radius:18px; padding:28px; max-width:480px; width:100%; box-shadow: 0 12px 30px -12px rgba(44,10,51,.35); }
-  h1{ font-size:20px; margin:0 0 6px; color: var(--roxo-escuro); }
-  p.sub{ font-size:13px; color: var(--texto-suave); margin:0 0 20px; }
-  label.campo{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
-  input[type="email"], input[type="password"]{
-    width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid rgba(44,10,51,.2);
-    font-size:15px; margin-bottom:14px;
-  }
-  button.btn{
-    width:100%; padding:12px; border-radius:999px; border:none; font-weight:700; font-size:14px;
-    background: linear-gradient(135deg, var(--roxo-vivo), var(--rosa)); color:#fff; cursor:pointer;
-  }
-  button.btn:disabled{ opacity:.6; cursor:wait; }
-  .erro{ color: var(--vermelho); font-size:13px; margin:0 0 12px; display:none; }
-  .erro.mostrar{ display:block; }
+  [hidden]{ display:none !important; }
+  body{ margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--creme); color: var(--texto); }
+  button{ font-family:inherit; cursor:pointer; }
+  h1{ font-size:19px; margin:0; color: var(--roxo-escuro); }
+  h2{ font-size:17px; margin:0 0 10px; color: var(--roxo-escuro); }
+  h3{ font-size:14px; margin:18px 0 6px; color: var(--roxo-escuro); }
 
-  .topo-painel{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:4px; }
-  .usuario{ font-size:12px; color: var(--texto-suave); word-break:break-all; }
+  /* login */
+  .centro{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card{ background:#fff; border-radius:18px; padding:28px; max-width:420px; width:100%; box-shadow:0 12px 30px -12px rgba(44,10,51,.35); }
+  .sub{ font-size:13px; color: var(--suave); margin:6px 0 18px; }
 
-  .promo-item{
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:14px 0; border-bottom:1px solid rgba(44,10,51,.08);
-  }
-  .promo-item:last-child{ border-bottom:none; }
-  .promo-info h3{ font-size:14.5px; margin:0 0 3px; }
-  .promo-info p{ font-size:12px; color: var(--texto-suave); margin:0; }
-  .promo-valor{ display:flex; align-items:center; gap:6px; margin-top:6px; }
-  .promo-valor input{
-    width:72px; padding:6px 8px; border-radius:8px; border:1.5px solid rgba(44,10,51,.2); font-size:13px;
-  }
-  .promo-valor span{ font-size:12px; color: var(--texto-suave); }
+  /* topo e abas */
+  .topo{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 16px; background:#fff; border-bottom:1px solid var(--linha); flex-wrap:wrap; }
+  .usuario{ font-size:12px; color: var(--suave); margin-right:8px; word-break:break-all; }
+  .abas{ display:flex; gap:6px; padding:10px 16px 0; max-width:760px; margin:0 auto; overflow-x:auto; }
+  .abas button{ border:none; background:#fff; padding:10px 16px; border-radius:12px 12px 0 0; font-weight:700; font-size:13.5px; color: var(--suave); white-space:nowrap; }
+  .abas button.ativa{ background: var(--roxo-escuro); color:#fff; }
+  .pagina{ max-width:760px; margin:0 auto; padding:0 16px 40px; }
+  .painel{ background:#fff; border-radius:0 14px 14px 14px; padding:18px; box-shadow:0 8px 22px -14px rgba(44,10,51,.35); }
 
-  .switch{ position:relative; flex:none; width:48px; height:28px; }
+  .aviso{ max-width:760px; margin:10px auto 0; padding:0 16px; font-size:13px; min-height:18px; }
+  .aviso.ok{ color:#1e9e57; } .aviso.erro{ color: var(--vermelho); }
+
+  /* botões */
+  .btn{ border:none; border-radius:999px; padding:11px 20px; font-weight:700; font-size:14px; color:#fff; background: linear-gradient(135deg, var(--roxo-vivo), var(--rosa)); }
+  .btn:disabled{ opacity:.6; cursor:wait; }
+  .btn-sec{ border:1.5px solid rgba(44,10,51,.25); border-radius:999px; padding:10px 18px; font-weight:600; font-size:14px; background:#fff; color: var(--texto); }
+  .btn-perigo{ border:1.5px solid var(--vermelho); color: var(--vermelho); background:#fff; border-radius:999px; padding:10px 16px; font-weight:600; font-size:13px; }
+  .btn-mini{ border:1.5px solid rgba(44,10,51,.2); background:#fff; border-radius:9px; padding:6px 10px; font-size:13px; line-height:1; color: var(--texto); display:inline-flex; align-items:center; }
+  .link{ border:none; background:none; color: var(--suave); text-decoration:underline; font-size:12.5px; padding:4px; }
+  .barra{ display:flex; justify-content:flex-end; margin-bottom:12px; }
+
+  /* listas */
+  .secao-titulo{ display:flex; align-items:center; gap:8px; margin:18px 0 6px; }
+  .secao-titulo:first-of-type{ margin-top:0; }
+  .linha{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--linha); }
+  .linha:last-child{ border-bottom:none; }
+  .mini{ flex:none; width:46px; height:46px; border-radius:10px; background:#2C0A33 center/contain no-repeat; display:inline-block; }
+  .info{ flex:1; min-width:0; }
+  .info strong{ display:block; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; }
+  .info small{ display:block; font-size:12px; color: var(--suave); }
+  .acoes{ display:flex; gap:6px; align-items:center; flex:none; }
+  .badge{ display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; background:#F0D9A0; color:#6d4b05; margin-left:6px; }
+  .vazio{ font-size:13px; color: var(--suave); padding:8px 0; }
+  @media (max-width: 560px){
+    .linha{ flex-wrap:wrap; }
+    .info{ flex:1 1 150px; }
+    .acoes{ flex:0 0 100%; justify-content:flex-end; }
+    .info strong{ overflow:visible; }
+    .painel{ padding:14px; }
+  }
+
+  /* chave liga/desliga */
+  .switch{ position:relative; flex:none; width:44px; height:26px; display:inline-block; }
   .switch input{ opacity:0; width:0; height:0; }
-  .slider{
-    position:absolute; cursor:pointer; inset:0; background:#ccc; border-radius:999px; transition:.2s;
-  }
-  .slider::before{
-    content:""; position:absolute; height:22px; width:22px; left:3px; bottom:3px;
-    background:#fff; border-radius:50%; transition:.2s;
-  }
-  input:checked + .slider{ background: var(--verde); }
-  input:checked + .slider::before{ transform: translateX(20px); }
+  .slider{ position:absolute; inset:0; background:#cfc6d1; border-radius:999px; cursor:pointer; transition:.2s; }
+  .slider::before{ content:""; position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s; }
+  .switch input:checked + .slider{ background: var(--verde); }
+  .switch input:checked + .slider::before{ transform:translateX(18px); }
 
-  .status{ text-align:center; font-size:13px; margin-top:16px; min-height:18px; }
-  .status.ok{ color: #1e9e57; }
-  .status.erro-status{ color: var(--vermelho); }
-  .sair{ display:block; text-align:center; margin-top:18px; font-size:12.5px; color: var(--texto-suave); cursor:pointer; text-decoration:underline; background:none; border:none; width:100%; }
+  /* janela (modal) */
+  .modal-fundo{ position:fixed; inset:0; background:rgba(36,18,38,.55); display:flex; align-items:flex-start; justify-content:center; padding:20px 12px; overflow-y:auto; z-index:50; }
+  .modal{ background:#fff; border-radius:16px; padding:22px; width:100%; max-width:560px; box-shadow:0 20px 50px -10px rgba(0,0,0,.4); }
+  .campo{ display:block; font-size:13px; font-weight:600; margin-bottom:12px; }
+  .campo input[type="text"], .campo input[type="email"], .campo input[type="password"], .campo select, input.campo-texto{
+    display:block; width:100%; margin-top:5px; padding:10px 12px; border-radius:10px; border:1.5px solid rgba(44,10,51,.2); font-size:14.5px; font-family:inherit; background:#fff;
+  }
+  .check{ display:flex; align-items:center; gap:8px; font-size:13.5px; margin:8px 0; }
+  .check input{ width:18px; height:18px; accent-color: var(--roxo-vivo); }
+  .check small{ color: var(--suave); }
+  .dica{ font-size:12.5px; color: var(--suave); margin:0 0 8px; }
+  .erro{ color: var(--vermelho); font-size:13px; margin:0 0 12px; }
+  .rodape-modal{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; flex-wrap:wrap; }
+  .rodape-modal .esq{ margin-right:auto; }
+  .foto-area{ display:flex; align-items:center; gap:10px; margin-top:6px; flex-wrap:wrap; }
+  .foto-prev{ width:84px; height:84px; object-fit:contain; background:#2C0A33; border-radius:12px; }
+  .sem-foto{ width:84px; height:84px; border-radius:12px; background:#eee6ef; color: var(--suave); font-size:12px; display:flex; align-items:center; justify-content:center; }
+  .sabor-linha{ display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+  .sabor-linha input[type="text"]{ flex:1; min-width:130px; padding:8px 10px; border-radius:9px; border:1.5px solid rgba(44,10,51,.2); font-size:14px; }
+  .sabor-linha .check{ margin:0; }
+  small.nota{ display:block; font-size:12px; color: var(--suave); margin-top:4px; }
+  .promo-valor{ display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color: var(--suave); }
+  .promo-valor input{ width:80px; padding:6px 8px; border-radius:8px; border:1.5px solid rgba(44,10,51,.2); font-size:13px; }
 </style>
 </head>
 <body>
 
-<!-- ============ TELA DE LOGIN ============ -->
-<div class="card" id="telaLogin">
-  <h1>🍇 Painel Tiburcio Açaí</h1>
-  <p class="sub">Entre com seu e-mail e senha.</p>
-  <p class="erro" id="erroLogin"></p>
-  <form id="formLogin">
-    <label class="campo" for="campoEmail">E-mail</label>
-    <input type="email" id="campoEmail" autocomplete="username" required />
-    <label class="campo" for="campoSenha">Senha</label>
-    <input type="password" id="campoSenha" autocomplete="current-password" required />
-    <button type="submit" class="btn" id="btnEntrar">Entrar</button>
-  </form>
+<!-- ============ LOGIN ============ -->
+<div class="centro" id="telaLogin">
+  <div class="card">
+    <h1>🍇 Painel Tiburcio Açaí</h1>
+    <p class="sub">Entre com seu e-mail e senha.</p>
+    <p class="erro" id="erroLogin" hidden></p>
+    <form id="formLogin">
+      <label class="campo">E-mail
+        <input type="email" id="campoEmail" autocomplete="username" required />
+      </label>
+      <label class="campo">Senha
+        <input type="password" id="campoSenha" autocomplete="current-password" required />
+      </label>
+      <button type="submit" class="btn" id="btnEntrar" style="width:100%">Entrar</button>
+    </form>
+  </div>
 </div>
 
 <!-- ============ PAINEL ============ -->
-<div class="card" id="telaPainel" style="display:none; max-width:600px;">
-  <div class="topo-painel">
-    <h1>🍇 Promoções</h1>
-  </div>
-  <p class="usuario" id="textoUsuario"></p>
-  <p class="sub">Ative ou desative cada promoção. As mudanças aparecem no site em poucos segundos.</p>
-  <div id="listaPromocoes"></div>
-  <div class="status" id="statusSalvar"></div>
-  <button class="sair" id="btnSair" type="button">Sair</button>
+<div id="app" hidden>
+  <header class="topo">
+    <h1>🍇 Painel Tiburcio Açaí</h1>
+    <div><span class="usuario" id="textoUsuario"></span><button class="link" id="btnSair" type="button">Sair</button></div>
+  </header>
+  <nav class="abas" id="abas">
+    <button type="button" data-aba="produtos" class="ativa">Produtos</button>
+    <button type="button" data-aba="complementos">Complementos</button>
+    <button type="button" data-aba="categorias">Categorias</button>
+    <button type="button" data-aba="promocoes">Promoções</button>
+  </nav>
+  <div class="aviso" id="aviso" aria-live="polite"></div>
+  <div class="pagina"><div class="painel" id="conteudo"></div></div>
 </div>
 
+<div class="modal-fundo" id="modalFundo" hidden><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+
 <script>
-  // ------------------------------------------------------------
-  // Este arquivo NÃO guarda nenhuma senha. O acesso é feito com o
-  // login (e-mail + senha) dos usuários criados no Supabase.
-  // A chave abaixo é a chave PÚBLICA do projeto (a mesma do site).
-  // ------------------------------------------------------------
+  /* ============================================================
+     Este arquivo NÃO guarda senha. O acesso é por e-mail e senha
+     dos usuários criados no Supabase. A chave abaixo é a chave
+     PÚBLICA do projeto (a mesma do site).
+     ============================================================ */
   const SUPABASE_URL = "https://bmsgygpjubdzauxlztth.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtc2d5Z3BqdWJkemF1eGx6dHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjg3NTYsImV4cCI6MjEwNDgwNDc1Nn0.ppi8E0KH_wzoP2OsFgPkSAOgneDMJLKxWQ_Dmi9qMbw";
+  const BUCKET = "fotos";
   const CHAVE_SESSAO = "tiburcioPainelSessao";
+  const PREFIXO_FOTOS = SUPABASE_URL + "/storage/v1/object/public/" + BUCKET + "/";
 
-  let promocoes = [];
+  let dados = { categorias: [], produtos: [], grupos: [], opcoes: [], vinculos: [], promocoes: [] };
+  let abaAtual = "produtos";
+  let form = null; // formulário aberto na janela
 
+  /* ---------------- utilidades ---------------- */
   const el = (id) => document.getElementById(id);
+  const enc = encodeURIComponent;
 
   function esc(texto) {
-    return String(texto ?? "").replace(/[&<>"']/g, (c) => (
-      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
-    ));
+    return String(texto ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function slug(texto) {
+    const s = String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+    return s || "item";
+  }
+  function idUnico(base, usados) {
+    let id = base, n = 2;
+    while (usados.has(id)) id = base + "-" + n++;
+    usados.add(id);
+    return id;
+  }
+  function brl(n) { return "R$ " + Number(n).toFixed(2).replace(".", ","); }
+  function lerPreco(v) {
+    let t = String(v ?? "").trim();
+    if (!t) return null;
+    t = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
+    const n = Number(t);
+    return Number.isFinite(n) && n >= 0 && n <= 9999.99 ? Math.round(n * 100) / 100 : null;
+  }
+  // Só aceita endereço de foto "limpo": nome de arquivo do site ou https.
+  function urlFoto(v) {
+    const s = String(v ?? "").trim();
+    if (!s) return "";
+    return /^(https:\/\/)?[A-Za-z0-9_\-./:%@?=&+~#]+$/.test(s) ? s : "";
+  }
+  const porOrdem = (a, b) => (a.ordem || 0) - (b.ordem || 0) || String(a.nome || "").localeCompare(String(b.nome || ""));
+  const proximaOrdem = (lista) => lista.reduce((m, x) => Math.max(m, x.ordem || 0), 0) + 1;
+  const ehGrupoDeSabor = (g) => String(g.id).startsWith("sabores-");
+
+  function erroTexto(err) {
+    if (!err) return "Algo deu errado.";
+    if (err.status === 401 || err.status === 403) return "Sem permissão. Saia e entre de novo.";
+    return err.message || "Algo deu errado.";
+  }
+  function avisar(texto, ehErro) {
+    const a = el("aviso");
+    a.textContent = texto || "";
+    a.className = "aviso" + (texto ? (ehErro ? " erro" : " ok") : "");
+    clearTimeout(avisar._t);
+    if (texto && !ehErro) avisar._t = setTimeout(() => { a.textContent = ""; a.className = "aviso"; }, 4000);
   }
 
-  // ---------------- Sessão (login) ----------------
-  function lerSessao() {
-    try { return JSON.parse(localStorage.getItem(CHAVE_SESSAO)); } catch (e) { return null; }
-  }
+  /* ---------------- sessão (login) ---------------- */
+  function lerSessao() { try { return JSON.parse(localStorage.getItem(CHAVE_SESSAO)); } catch (e) { return null; } }
   function salvarSessao(s) { localStorage.setItem(CHAVE_SESSAO, JSON.stringify(s)); }
   function limparSessao() { localStorage.removeItem(CHAVE_SESSAO); }
 
-  // Pede um token novo ao Supabase (por senha ou por refresh_token).
   async function autenticar(corpo, tipo) {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${tipo}`, {
+    const res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=" + tipo, {
       method: "POST",
       headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
       body: JSON.stringify(corpo),
     });
-    const dados = await res.json().catch(() => ({}));
-    if (!res.ok || !dados.access_token) {
-      const erro = new Error("falha_login");
-      erro.status = res.status;
-      throw erro;
-    }
-    const sessao = {
-      access_token: dados.access_token,
-      refresh_token: dados.refresh_token,
-      expira_em: Date.now() + (Number(dados.expires_in) || 3600) * 1000,
-      email: (dados.user && dados.user.email) || (lerSessao() || {}).email || "",
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.access_token) { const e = new Error("falha_login"); e.status = res.status; throw e; }
+    const s = {
+      access_token: d.access_token,
+      refresh_token: d.refresh_token,
+      expira_em: Date.now() + (Number(d.expires_in) || 3600) * 1000,
+      email: (d.user && d.user.email) || (lerSessao() || {}).email || "",
     };
-    salvarSessao(sessao);
-    return sessao;
+    salvarSessao(s);
+    return s;
   }
-
-  // Devolve um token válido (renova sozinho se estiver perto de vencer).
   async function obterToken() {
     let s = lerSessao();
     if (!s || !s.access_token) return null;
     if (Date.now() > s.expira_em - 60000) {
-      try {
-        s = await autenticar({ refresh_token: s.refresh_token }, "refresh_token");
-      } catch (e) {
-        limparSessao();
-        return null;
-      }
+      try { s = await autenticar({ refresh_token: s.refresh_token }, "refresh_token"); }
+      catch (e) { limparSessao(); return null; }
     }
     return s.access_token;
   }
 
-  // ---------------- Telas ----------------
-  function mostrarLogin(mensagem) {
-    el("telaPainel").style.display = "none";
-    el("telaLogin").style.display = "block";
-    const erro = el("erroLogin");
-    if (mensagem) { erro.textContent = mensagem; erro.classList.add("mostrar"); }
-    else { erro.textContent = ""; erro.classList.remove("mostrar"); }
+  /* ---------------- acesso ao banco ---------------- */
+  async function api(metodo, caminho, corpo, extras) {
+    const token = await obterToken();
+    if (!token) { mostrarLogin("Sua sessão expirou. Entre de novo."); const e = new Error("Sua sessão expirou. Entre de novo."); e.status = 401; throw e; }
+    const res = await fetch(SUPABASE_URL + caminho, {
+      method: metodo,
+      headers: Object.assign({ apikey: SUPABASE_KEY, Authorization: "Bearer " + token, "Content-Type": "application/json", Prefer: "return=representation" }, extras || {}),
+      body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    });
+    let d = null;
+    try { d = await res.json(); } catch (e) { /* resposta sem corpo */ }
+    if (!res.ok) { const e = new Error((d && (d.message || d.error_description || d.error)) || ("Erro " + res.status)); e.status = res.status; throw e; }
+    return d;
+  }
+  const rest = (metodo, tabela, filtro, corpo, extras) => api(metodo, "/rest/v1/" + tabela + (filtro || ""), corpo, extras);
+
+  const NAO_GRAVOU = "Não consegui salvar (sem permissão ou o item não existe mais). Saia e entre de novo.";
+  async function lerTabela(tabela) { const d = await rest("GET", tabela, "?select=*"); return Array.isArray(d) ? d : []; }
+  async function inserir(tabela, linha) {
+    const d = await rest("POST", tabela, "", linha);
+    if (!Array.isArray(d) || d.length === 0) throw new Error(NAO_GRAVOU);
+    return d[0];
+  }
+  async function atualizar(tabela, coluna, valor, corpo) {
+    const d = await rest("PATCH", tabela, "?" + coluna + "=eq." + enc(valor), corpo);
+    // Se o banco recusar a gravação, ele não dá erro: devolve lista vazia.
+    if (!Array.isArray(d) || d.length === 0) throw new Error(NAO_GRAVOU);
+    return d[0];
+  }
+  async function apagar(tabela, filtro) {
+    const d = await rest("DELETE", tabela, filtro);
+    return Array.isArray(d) ? d : [];
+  }
+  async function upsertVinculos(linhas) {
+    if (!linhas.length) return;
+    await rest("POST", "produto_grupos", "?on_conflict=produto_id,grupo_id", linhas, { Prefer: "resolution=merge-duplicates,return=representation" });
   }
 
-  async function abrirPainel() {
-    const s = lerSessao();
-    el("telaLogin").style.display = "none";
-    el("telaPainel").style.display = "block";
-    el("textoUsuario").textContent = s && s.email ? "Conectado como " + s.email : "";
-    await carregarPromocoes();
+  async function carregarTudo() {
+    const [categorias, produtos, grupos, opcoes, vinculos, promocoes] = await Promise.all([
+      lerTabela("categorias"), lerTabela("produtos"), lerTabela("grupos"),
+      lerTabela("opcoes"), lerTabela("produto_grupos"), lerTabela("promocoes"),
+    ]);
+    dados = {
+      categorias: categorias.sort(porOrdem),
+      produtos: produtos.sort(porOrdem),
+      grupos: grupos.sort(porOrdem),
+      opcoes: opcoes.sort(porOrdem),
+      vinculos,
+      promocoes: promocoes.sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
+    };
   }
 
-  // ---------------- Dados ----------------
-  async function carregarPromocoes() {
-    el("statusSalvar").textContent = "";
+  /* ---------------- fotos ---------------- */
+  // Reduz e otimiza a foto antes de enviar (cabe no limite do bucket e carrega rápido no celular).
+  async function prepararImagem(arquivo) {
+    if (!arquivo || !/^image\//.test(arquivo.type)) throw new Error("Escolha um arquivo de imagem (JPG, PNG ou WebP).");
+    if (arquivo.size > 20 * 1024 * 1024) throw new Error("A imagem é muito grande (máximo 20 MB).");
+    let bitmap;
+    try { bitmap = await createImageBitmap(arquivo, { imageOrientation: "from-image" }); }
+    catch (e) { throw new Error("Não consegui abrir essa imagem. Tente outro arquivo."); }
+    const tentativas = [[1000, 0.85], [1000, 0.7], [800, 0.7], [600, 0.65]];
+    for (const [maximo, qualidade] of tentativas) {
+      const escala = Math.min(1, maximo / Math.max(bitmap.width, bitmap.height));
+      const w = Math.max(1, Math.round(bitmap.width * escala));
+      const h = Math.max(1, Math.round(bitmap.height * escala));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      let blob = await new Promise((r) => canvas.toBlob(r, "image/webp", qualidade));
+      if (!blob || blob.type !== "image/webp") {
+        // navegador sem suporte a WebP: usa JPEG com fundo roxo escuro (cor da marca)
+        ctx.globalCompositeOperation = "destination-over";
+        ctx.fillStyle = "#2C0A33"; ctx.fillRect(0, 0, w, h);
+        blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", qualidade));
+      }
+      if (blob && blob.size <= 900 * 1024) return blob;
+    }
+    throw new Error("A imagem ficou grande demais mesmo depois de reduzir. Tente outra foto.");
+  }
+
+  async function enviarFoto(blob, nomeBase) {
+    const token = await obterToken();
+    if (!token) { const e = new Error("Sua sessão expirou. Entre de novo."); e.status = 401; throw e; }
+    const ext = blob.type === "image/jpeg" ? "jpg" : blob.type === "image/png" ? "png" : "webp";
+    const caminho = Date.now() + "-" + Math.random().toString(36).slice(2, 6) + "-" + slug(nomeBase) + "." + ext;
+    const res = await fetch(SUPABASE_URL + "/storage/v1/object/" + BUCKET + "/" + caminho, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + token, "Content-Type": blob.type, "x-upsert": "false" },
+      body: blob,
+    });
+    if (!res.ok) throw new Error("Não consegui enviar a foto. Confira a internet e se o armazenamento de fotos foi criado (passo do SQL).");
+    return PREFIXO_FOTOS + caminho;
+  }
+
+  // Apaga uma foto antiga do armazenamento (só as enviadas pelo painel). Falhar aqui não atrapalha nada.
+  async function apagarFotoAntiga(url) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?select=*&order=nome`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      if (!url || !String(url).startsWith(PREFIXO_FOTOS)) return;
+      const token = await obterToken();
+      if (!token) return;
+      await fetch(SUPABASE_URL + "/storage/v1/object/" + BUCKET, {
+        method: "DELETE",
+        headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({ prefixes: [String(url).slice(PREFIXO_FOTOS.length)] }),
       });
-      const dados = await res.json();
-      if (!res.ok || !Array.isArray(dados)) throw new Error("falha");
-      promocoes = dados;
-      renderLista();
-    } catch (e) {
-      el("listaPromocoes").innerHTML = "";
-      mostrarStatus("Não consegui carregar as promoções. Confira a internet e recarregue a página.", true);
+    } catch (e) { /* tudo bem */ }
+  }
+
+  /* ---------------- gravação: produtos ---------------- */
+  function grupoSaboresDe(produtoId) {
+    const v = dados.vinculos.find((x) => x.produto_id === produtoId && String(x.grupo_id).startsWith("sabores-"));
+    return v ? v.grupo_id : null;
+  }
+
+  function validarSabores(sabores) {
+    const nomes = sabores.map((s) => String(s.nome || "").trim()).filter(Boolean);
+    if (nomes.length === 0) throw new Error("Cadastre pelo menos um sabor.");
+    const repetido = nomes.find((n, i) => nomes.findIndex((m) => m.toLowerCase() === n.toLowerCase()) !== i);
+    if (repetido) throw new Error('O sabor "' + repetido + '" está repetido.');
+  }
+
+  async function sincronizarVinculos(produtoId, grupoIds) {
+    const existentes = dados.vinculos.filter((v) => v.produto_id === produtoId);
+    await upsertVinculos(grupoIds.map((g, i) => ({ produto_id: produtoId, grupo_id: g, ordem: i + 1 })));
+    for (const v of existentes) {
+      if (grupoIds.includes(v.grupo_id)) continue;
+      await apagar("produto_grupos", "?produto_id=eq." + enc(produtoId) + "&grupo_id=eq." + enc(v.grupo_id));
+      // grupo de sabores que sobrou deste produto (a categoria mudou): remove junto com os sabores
+      if (String(v.grupo_id).startsWith("sabores-")) await apagar("grupos", "?id=eq." + enc(v.grupo_id));
     }
   }
 
-  function renderLista() {
-    const container = el("listaPromocoes");
-    container.innerHTML = promocoes
-      .map((p) => {
-        const temValor = p.valor !== null && p.valor !== undefined;
-        return `
-        <div class="promo-item">
-          <div class="promo-info">
-            <h3>${esc(p.nome)}</h3>
-            <p>${esc(p.descricao)}</p>
-            ${
-              temValor
-                ? `<div class="promo-valor">
-                     <span>Valor:</span>
-                     <input type="number" step="0.01" min="0" data-id="${esc(p.id)}" class="campo-valor" value="${esc(p.valor)}" />
-                   </div>`
-                : ""
-            }
-          </div>
-          <label class="switch">
-            <input type="checkbox" data-id="${esc(p.id)}" class="campo-ativa" ${p.ativa ? "checked" : ""} />
-            <span class="slider"></span>
-          </label>
-        </div>`;
-      })
-      .join("");
+  async function sincronizarSabores(produtoId, nomeProduto, sabores, apagarDepois) {
+    const gid = grupoSaboresDe(produtoId) || ("sabores-" + produtoId);
+    if (!dados.grupos.some((g) => g.id === gid)) {
+      await inserir("grupos", { id: gid, nome: "Sabor", minimo: 1, maximo: 1 });
+      dados.grupos.push({ id: gid, nome: "Sabor", minimo: 1, maximo: 1 });
+    }
+    const existentes = dados.opcoes.filter((o) => o.grupo_id === gid);
+    const usados = new Set(dados.opcoes.map((o) => o.id));
+    const mantidos = new Set();
+    const lista = sabores.filter((s) => String(s.nome || "").trim());
 
-    container.querySelectorAll(".campo-ativa").forEach((campo) => {
-      campo.addEventListener("change", () => salvarPromocao(campo.dataset.id));
-    });
-    container.querySelectorAll(".campo-valor").forEach((campo) => {
-      campo.addEventListener("change", () => salvarPromocao(campo.dataset.id));
-    });
+    for (let i = 0; i < lista.length; i++) {
+      const s = lista[i];
+      const nomeS = String(s.nome).trim();
+      let img = s.imagemAtual || "";
+      if (s.fotoNova) {
+        const url = await enviarFoto(s.fotoNova, nomeProduto + "-" + nomeS);
+        if (img) apagarDepois.push(img);
+        img = url; s.imagemAtual = url; s.fotoNova = null; s.fotoPreview = "";
+      } else if (s.fotoRemover && img) {
+        apagarDepois.push(img); img = ""; s.imagemAtual = ""; s.fotoRemover = false;
+      }
+      const corpo = { nome: nomeS, imagem: img || null, ordem: i + 1, ativa: s.ativa !== false };
+      if (s.id && existentes.some((o) => o.id === s.id)) {
+        await atualizar("opcoes", "id", s.id, corpo);
+        mantidos.add(s.id);
+      } else {
+        const id = s.id || idUnico(produtoId + "-" + slug(nomeS), usados);
+        await inserir("opcoes", Object.assign({ id, grupo_id: gid }, corpo));
+        s.id = id; mantidos.add(id);
+      }
+    }
+    for (const o of existentes) {
+      if (mantidos.has(o.id)) continue;
+      if (o.imagem) apagarDepois.push(o.imagem);
+      await apagar("opcoes", "?id=eq." + enc(o.id));
+    }
+    await upsertVinculos([{ produto_id: produtoId, grupo_id: gid, ordem: 1 }]);
+    for (const v of dados.vinculos.filter((x) => x.produto_id === produtoId && x.grupo_id !== gid)) {
+      await apagar("produto_grupos", "?produto_id=eq." + enc(produtoId) + "&grupo_id=eq." + enc(v.grupo_id));
+    }
   }
 
-  function mostrarStatus(texto, ehErro) {
-    const status = el("statusSalvar");
-    status.textContent = texto;
-    status.className = "status" + (ehErro ? " erro-status" : texto ? " ok" : "");
+  async function salvarProdutoCompleto(f) {
+    const cat = dados.categorias.find((c) => c.id === f.categoria_id);
+    if (!cat) throw new Error("Escolha a categoria do produto.");
+    const nome = String(f.nome || "").trim();
+    if (!nome) throw new Error("Digite o nome do produto.");
+    const preco = lerPreco(f.preco);
+    if (preco === null) throw new Error("Digite um preço válido, por exemplo 23,90.");
+    if (cat.modelo === "sabores") validarSabores(f.sabores);
+    const descricao = String(f.descricao || "").trim();
+
+    const apagarDepois = [];
+    let imagem = f.imagemAtual || "";
+    if (f.fotoNova) {
+      const url = await enviarFoto(f.fotoNova, nome);
+      if (imagem) apagarDepois.push(imagem);
+      imagem = url; f.imagemAtual = url; f.fotoNova = null; f.fotoPreview = "";
+    } else if (f.fotoRemover && imagem) {
+      apagarDepois.push(imagem); imagem = ""; f.imagemAtual = ""; f.fotoRemover = false;
+    }
+
+    const campos = { categoria_id: cat.id, nome, descricao: descricao || null, preco, imagem: imagem || null, destaque: !!f.destaque };
+    const existente = f.id ? dados.produtos.find((p) => p.id === f.id) : null;
+    const daCategoria = dados.produtos.filter((p) => p.categoria_id === cat.id);
+    if (!existente) {
+      const id = f.id || idUnico(slug(nome), new Set(dados.produtos.map((p) => p.id)));
+      // produto novo nasce desativado e só é ativado no fim: se algo falhar no meio, ele não aparece pela metade no site
+      await inserir("produtos", Object.assign({ id }, campos, { ordem: proximaOrdem(daCategoria), ativo: false }));
+      f.id = id;
+    } else {
+      if (existente.categoria_id !== cat.id) campos.ordem = proximaOrdem(daCategoria);
+      await atualizar("produtos", "id", f.id, campos);
+    }
+
+    if (cat.modelo === "monta") await sincronizarVinculos(f.id, [...f.grupos]);
+    else await sincronizarSabores(f.id, nome, f.sabores, apagarDepois);
+
+    await atualizar("produtos", "id", f.id, { ativo: !!f.ativo });
+    apagarDepois.forEach((u) => apagarFotoAntiga(u));
+    return f.id;
   }
 
+  async function excluirProduto(id) {
+    const p = dados.produtos.find((x) => x.id === id);
+    if (!p) return;
+    const fotos = [p.imagem];
+    const gid = grupoSaboresDe(id);
+    if (gid) dados.opcoes.filter((o) => o.grupo_id === gid).forEach((o) => fotos.push(o.imagem));
+    await apagar("produtos", "?id=eq." + enc(id));
+    if (gid) await apagar("grupos", "?id=eq." + enc(gid));
+    fotos.forEach((u) => apagarFotoAntiga(u));
+  }
+
+  async function alternarAtivo(tabela, coluna, id, valor) {
+    await atualizar(tabela, "id", id, { [coluna]: !!valor });
+  }
+
+  async function moverOrdem(tabela, lista, id, delta) {
+    const ord = [...lista].sort(porOrdem);
+    const i = ord.findIndex((x) => x.id === id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= ord.length) return;
+    const nova = ord.map((x, k) => ({ id: x.id, ordem: k + 1 }));
+    [nova[i].ordem, nova[j].ordem] = [nova[j].ordem, nova[i].ordem];
+    for (const x of nova) {
+      const atual = ord.find((o) => o.id === x.id);
+      if ((atual.ordem || 0) !== x.ordem) await atualizar(tabela, "id", x.id, { ordem: x.ordem });
+    }
+  }
+
+  /* ---------------- gravação: categorias ---------------- */
+  async function salvarCategoriaCompleta(f) {
+    const nome = String(f.nome || "").trim();
+    if (!nome) throw new Error("Digite o nome da categoria.");
+    if (!["monta", "sabores"].includes(f.modelo)) throw new Error("Escolha como os produtos dessa categoria são vendidos.");
+    if (!f.id) {
+      const id = idUnico(slug(nome), new Set(dados.categorias.map((c) => c.id)));
+      await inserir("categorias", { id, nome, modelo: f.modelo, ordem: proximaOrdem(dados.categorias), ativa: true });
+      f.id = id;
+    } else {
+      const corpo = { nome };
+      if (!dados.produtos.some((p) => p.categoria_id === f.id)) corpo.modelo = f.modelo;
+      await atualizar("categorias", "id", f.id, corpo);
+    }
+  }
+  async function excluirCategoria(id) {
+    if (dados.produtos.some((p) => p.categoria_id === id)) throw new Error("Essa categoria ainda tem produtos. Mude ou exclua os produtos antes.");
+    await apagar("categorias", "?id=eq." + enc(id));
+  }
+
+  /* ---------------- gravação: grupos de complementos ---------------- */
+  async function salvarGrupoCompleto(f) {
+    const nome = String(f.nome || "").trim();
+    if (!nome) throw new Error("Digite o nome do grupo.");
+    let maximo = null;
+    const txt = String(f.maximo ?? "").trim();
+    if (txt !== "") {
+      maximo = Number(txt);
+      if (!Number.isInteger(maximo) || maximo < 1 || maximo > 50) throw new Error("O limite precisa ser um número de 1 a 50 (ou deixe vazio para não ter limite).");
+    }
+    const itens = f.itens.filter((i) => String(i.nome || "").trim());
+    if (itens.length === 0) throw new Error("Cadastre pelo menos um item no grupo.");
+    const nomes = itens.map((i) => i.nome.trim().toLowerCase());
+    const repetido = itens.find((i, k) => nomes.indexOf(i.nome.trim().toLowerCase()) !== k);
+    if (repetido) throw new Error('O item "' + repetido.nome.trim() + '" está repetido.');
+
+    if (!f.id) {
+      const id = idUnico(slug(nome), new Set(dados.grupos.map((g) => g.id)));
+      const ordem = proximaOrdem(dados.grupos.filter((g) => !ehGrupoDeSabor(g)));
+      await inserir("grupos", { id, nome, minimo: 0, maximo, ordem });
+      dados.grupos.push({ id, nome, minimo: 0, maximo, ordem });
+      f.id = id;
+    } else {
+      await atualizar("grupos", "id", f.id, { nome, maximo });
+    }
+    const existentes = dados.opcoes.filter((o) => o.grupo_id === f.id);
+    const usados = new Set(dados.opcoes.map((o) => o.id));
+    const mantidos = new Set();
+    for (let i = 0; i < itens.length; i++) {
+      const it = itens[i];
+      const corpo = { nome: it.nome.trim(), ordem: i + 1, ativa: it.ativa !== false };
+      if (it.id && existentes.some((o) => o.id === it.id)) {
+        await atualizar("opcoes", "id", it.id, corpo);
+        mantidos.add(it.id);
+      } else {
+        const id = it.id || idUnico(f.id + "-" + slug(corpo.nome), usados);
+        await inserir("opcoes", Object.assign({ id, grupo_id: f.id }, corpo));
+        it.id = id; mantidos.add(id);
+      }
+    }
+    for (const o of existentes) if (!mantidos.has(o.id)) await apagar("opcoes", "?id=eq." + enc(o.id));
+  }
+  async function excluirGrupo(id) {
+    await apagar("grupos", "?id=eq." + enc(id)); // os itens e as ligações com produtos saem junto
+  }
+
+  /* ---------------- gravação: promoções ---------------- */
   async function salvarPromocao(id) {
-    const ativaEl = document.querySelector(`.campo-ativa[data-id="${id}"]`);
-    const valorEl = document.querySelector(`.campo-valor[data-id="${id}"]`);
-
+    const ativaEl = document.querySelector('[data-toggle="promo-ativa"][data-id="' + id + '"]');
+    const valorEl = document.querySelector('[data-toggle="promo-valor"][data-id="' + id + '"]');
     const corpo = { ativa: ativaEl.checked };
     if (valorEl) {
-      const valor = parseFloat(valorEl.value);
-      if (Number.isNaN(valor) || valor < 0) {
-        mostrarStatus("Digite um valor válido (zero ou maior).", true);
-        return;
-      }
-      if (id.startsWith("desconto") && valor > 50) {
-        mostrarStatus("O desconto em porcentagem vai de 0 a 50.", true);
-        return;
-      }
-      corpo.valor = valor;
+      const v = parseFloat(valorEl.value);
+      if (Number.isNaN(v) || v < 0) throw new Error("Digite um valor válido (zero ou maior).");
+      if (id.startsWith("desconto") && v > 50) throw new Error("O desconto em porcentagem vai de 0 a 50.");
+      corpo.valor = v;
     }
-
-    const token = await obterToken();
-    if (!token) {
-      mostrarLogin("Sua sessão expirou. Entre de novo.");
-      return;
-    }
-
-    mostrarStatus("Salvando...", false);
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?id=eq.${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify(corpo),
-      });
-      const dados = await res.json().catch(() => null);
-      // Se o banco recusar a gravação, ele não dá erro: devolve uma lista vazia.
-      if (!res.ok || !Array.isArray(dados) || dados.length === 0) throw new Error("nao_gravou");
-      mostrarStatus("✅ Salvo! Já está valendo no site.", false);
-    } catch (e) {
-      mostrarStatus("❌ Não consegui salvar. Recarregue a página e entre de novo.", true);
-    }
+    await atualizar("promocoes", "id", id, corpo);
   }
 
-  // ---------------- Eventos ----------------
+  /* ============================================================
+     TELAS
+     ============================================================ */
+  function mostrarLogin(mensagem) {
+    el("app").hidden = true;
+    fecharModal();
+    el("telaLogin").hidden = false;
+    const erro = el("erroLogin");
+    erro.textContent = mensagem || "";
+    erro.hidden = !mensagem;
+  }
+  async function abrirPainel() {
+    const s = lerSessao();
+    el("telaLogin").hidden = true;
+    el("app").hidden = false;
+    el("textoUsuario").textContent = s && s.email ? s.email : "";
+    el("conteudo").innerHTML = '<p class="vazio">Carregando…</p>';
+    try { await carregarTudo(); renderAba(); }
+    catch (e) { if (!el("app").hidden) el("conteudo").innerHTML = '<p class="erro">Não consegui carregar os dados. Confira a internet e recarregue a página.</p>'; }
+  }
+
+  function renderAba() {
+    document.querySelectorAll("#abas [data-aba]").forEach((b) => b.classList.toggle("ativa", b.dataset.aba === abaAtual));
+    const mapa = { produtos: renderProdutos, complementos: renderComplementos, categorias: renderCategorias, promocoes: renderPromocoes };
+    (mapa[abaAtual] || renderProdutos)();
+  }
+
+  const mini = (url) => { const u = urlFoto(url); return '<span class="mini"' + (u ? ' style="background-image:url(\'' + esc(u) + '\')"' : "") + "></span>"; };
+  const interruptor = (toggle, id, ligado) =>
+    '<label class="switch"><input type="checkbox" data-toggle="' + toggle + '" data-id="' + esc(id) + '"' + (ligado ? " checked" : "") + '><span class="slider"></span></label>';
+  const setas = (acao, id) =>
+    '<button type="button" class="btn-mini" title="Subir" data-acao="subir-' + acao + '" data-id="' + esc(id) + '">▲</button>' +
+    '<button type="button" class="btn-mini" title="Descer" data-acao="descer-' + acao + '" data-id="' + esc(id) + '">▼</button>';
+
+  function renderProdutos() {
+    let html = '<div class="barra"><button type="button" class="btn" data-acao="novo-produto">+ Novo produto</button></div>';
+    if (dados.categorias.length === 0) html += '<p class="vazio">Crie uma categoria primeiro (aba Categorias).</p>';
+    dados.categorias.forEach((c) => {
+      const lista = dados.produtos.filter((p) => p.categoria_id === c.id);
+      html += '<div class="secao-titulo"><h2 style="margin:0">' + esc(c.nome) + "</h2>" + (c.ativa === false ? '<span class="badge">categoria desativada</span>' : "") + "</div>";
+      if (lista.length === 0) html += '<p class="vazio">Nenhum produto nesta categoria.</p>';
+      lista.forEach((p) => {
+        html += '<div class="linha">' + mini(p.imagem) +
+          '<div class="info"><strong>' + esc(p.nome) + (p.destaque ? '<span class="badge">mais pedido</span>' : "") + "</strong><small>" + brl(p.preco) + (p.ativo === false ? " · fora do site" : "") + "</small></div>" +
+          '<div class="acoes">' + interruptor("produto-ativo", p.id, p.ativo !== false) + setas("produto", p.id) +
+          '<button type="button" class="btn-mini" data-acao="editar-produto" data-id="' + esc(p.id) + '">Editar</button></div></div>';
+      });
+    });
+    el("conteudo").innerHTML = html;
+  }
+
+  function renderComplementos() {
+    const grupos = dados.grupos.filter((g) => !ehGrupoDeSabor(g));
+    let html = '<div class="barra"><button type="button" class="btn" data-acao="novo-grupo">+ Novo grupo</button></div>' +
+      '<p class="dica">Grupos de complementos são as listas que o cliente escolhe ao montar o açaí (Completos, Coberturas, Frutas…). O mesmo grupo pode ser usado em vários produtos.</p>';
+    if (grupos.length === 0) html += '<p class="vazio">Nenhum grupo ainda.</p>';
+    grupos.forEach((g) => {
+      const itens = dados.opcoes.filter((o) => o.grupo_id === g.id);
+      const usos = dados.vinculos.filter((v) => v.grupo_id === g.id).length;
+      html += '<div class="linha"><div class="info"><strong>' + esc(g.nome) + '</strong><small>' +
+        (g.maximo === null || g.maximo === undefined ? "sem limite" : "até " + g.maximo + " por pedido") + " · " + itens.length + " itens · usado em " + usos + " produto(s)</small>" +
+        "<small>" + esc(itens.map((o) => o.nome).join(", ")) + "</small></div>" +
+        '<div class="acoes">' + setas("grupo", g.id) + '<button type="button" class="btn-mini" data-acao="editar-grupo" data-id="' + esc(g.id) + '">Editar</button></div></div>';
+    });
+    el("conteudo").innerHTML = html;
+  }
+
+  const ROTULO_MODELO = { monta: "Monta com complementos (como o açaí)", sabores: "Escolhe o sabor (como sorvete e picolé)" };
+  function renderCategorias() {
+    let html = '<div class="barra"><button type="button" class="btn" data-acao="nova-categoria">+ Nova categoria</button></div>' +
+      '<p class="dica">Cada categoria vira uma aba no cardápio do site.</p>';
+    dados.categorias.forEach((c) => {
+      const n = dados.produtos.filter((p) => p.categoria_id === c.id).length;
+      html += '<div class="linha"><div class="info"><strong>' + esc(c.nome) + "</strong><small>" + esc(ROTULO_MODELO[c.modelo] || c.modelo) + " · " + n + " produto(s)</small></div>" +
+        '<div class="acoes">' + interruptor("categoria-ativa", c.id, c.ativa !== false) + setas("categoria", c.id) +
+        '<button type="button" class="btn-mini" data-acao="editar-categoria" data-id="' + esc(c.id) + '">Editar</button></div></div>';
+    });
+    el("conteudo").innerHTML = html;
+  }
+
+  function renderPromocoes() {
+    let html = '<p class="dica">Ligue ou desligue cada promoção. As mudanças aparecem no site em poucos segundos.</p>';
+    if (dados.promocoes.length === 0) html += '<p class="vazio">Nenhuma promoção cadastrada.</p>';
+    dados.promocoes.forEach((p) => {
+      const temValor = p.valor !== null && p.valor !== undefined;
+      html += '<div class="linha"><div class="info"><strong>' + esc(p.nome) + "</strong><small>" + esc(p.descricao) + "</small>" +
+        (temValor ? '<div class="promo-valor">Valor: <input type="number" step="0.01" min="0" data-toggle="promo-valor" data-id="' + esc(p.id) + '" value="' + esc(p.valor) + '"></div>' : "") +
+        "</div>" + interruptor("promo-ativa", p.id, !!p.ativa) + "</div>";
+    });
+    el("conteudo").innerHTML = html;
+  }
+
+  /* ---------------- janela (modal) ---------------- */
+  function abrirModal(html) {
+    el("modal").innerHTML = html;
+    el("modalFundo").hidden = false;
+    document.body.style.overflow = "hidden";
+    el("modalFundo").scrollTop = 0;
+  }
+  function fecharModal() {
+    el("modalFundo").hidden = true;
+    el("modal").innerHTML = "";
+    document.body.style.overflow = "";
+    if (form) {
+      if (form.fotoPreview) URL.revokeObjectURL(form.fotoPreview);
+      (form.sabores || []).forEach((s) => s.fotoPreview && URL.revokeObjectURL(s.fotoPreview));
+    }
+    form = null;
+  }
+  function erroModal(texto) {
+    const e = el("erroModal");
+    if (!e) return;
+    e.textContent = texto; e.hidden = !texto;
+    if (texto) e.scrollIntoView({ block: "nearest" });
+  }
+
+  /* ---- produto ---- */
+  function novoFormProduto(p) {
+    const cat = p ? p.categoria_id : (dados.categorias[0] || {}).id;
+    const gid = p ? grupoSaboresDe(p.id) : null;
+    return {
+      tipo: "produto",
+      id: p ? p.id : null,
+      categoria_id: cat || "",
+      nome: p ? p.nome : "",
+      descricao: p ? (p.descricao || "") : "",
+      preco: p ? String(p.preco).replace(".", ",") : "",
+      destaque: p ? !!p.destaque : false,
+      ativo: p ? p.ativo !== false : true,
+      imagemAtual: p ? (p.imagem || "") : "",
+      fotoNova: null, fotoPreview: "", fotoRemover: false,
+      grupos: new Set(p ? dados.vinculos.filter((v) => v.produto_id === p.id && !String(v.grupo_id).startsWith("sabores-")).sort(porOrdem).map((v) => v.grupo_id) : []),
+      sabores: gid ? dados.opcoes.filter((o) => o.grupo_id === gid).sort(porOrdem).map((o) => ({ id: o.id, nome: o.nome, ativa: o.ativa !== false, imagemAtual: o.imagem || "", fotoNova: null, fotoPreview: "", fotoRemover: false })) : [],
+    };
+  }
+  function novoSabor() { return { id: null, nome: "", ativa: true, imagemAtual: "", fotoNova: null, fotoPreview: "", fotoRemover: false }; }
+
+  function htmlOpcoesProduto(cat) {
+    if (!cat) return "";
+    if (cat.modelo === "monta") {
+      const grupos = dados.grupos.filter((g) => !ehGrupoDeSabor(g));
+      let h = "<h3>Complementos deste produto</h3><p class=\"dica\">Marque os grupos que o cliente pode escolher. Sem nenhum grupo marcado, o produto é vendido sozinho (só a quantidade).</p>";
+      if (grupos.length === 0) h += '<p class="vazio">Nenhum grupo criado ainda (aba Complementos).</p>';
+      grupos.forEach((g) => {
+        h += '<label class="check"><input type="checkbox" data-campo="prod-grupo" data-id="' + esc(g.id) + '"' + (form.grupos.has(g.id) ? " checked" : "") + "> " + esc(g.nome) +
+          " <small>(" + (g.maximo === null || g.maximo === undefined ? "sem limite" : "até " + g.maximo) + ")</small></label>";
+      });
+      return h;
+    }
+    let h = '<h3>Sabores</h3><p class="dica">O cliente escolhe um sabor ao pedir. Use ▲ ▼ para mudar a ordem e 📷 para a foto de cada sabor.</p>';
+    form.sabores.forEach((s, i) => {
+      const src = s.fotoPreview || (!s.fotoRemover ? urlFoto(s.imagemAtual) : "");
+      h += '<div class="sabor-linha">' + mini(src) +
+        '<input type="text" maxlength="40" placeholder="Nome do sabor" data-campo="sabor-nome" data-i="' + i + '" value="' + esc(s.nome) + '">' +
+        '<label class="check"><input type="checkbox" data-campo="sabor-ativa" data-i="' + i + '"' + (s.ativa ? " checked" : "") + '> no site</label>' +
+        '<label class="btn-mini" title="Foto do sabor">📷<input type="file" accept="image/*" hidden data-campo="sabor-foto" data-i="' + i + '"></label>' +
+        (src ? '<button type="button" class="btn-mini" title="Remover foto" data-acao="remover-foto-sabor" data-i="' + i + '">✕</button>' : "") +
+        '<button type="button" class="btn-mini" data-acao="subir-sabor" data-i="' + i + '">▲</button>' +
+        '<button type="button" class="btn-mini" data-acao="descer-sabor" data-i="' + i + '">▼</button>' +
+        '<button type="button" class="btn-mini" title="Remover sabor" data-acao="remover-sabor" data-i="' + i + '">🗑</button></div>';
+    });
+    return h + '<button type="button" class="btn-sec" data-acao="add-sabor">+ Adicionar sabor</button>';
+  }
+
+  function renderModalProduto() {
+    const f = form;
+    const cat = dados.categorias.find((c) => c.id === f.categoria_id);
+    const fotoSrc = f.fotoPreview || (!f.fotoRemover ? urlFoto(f.imagemAtual) : "");
+    abrirModal(
+      "<h2>" + (f.id ? "Editar produto" : "Novo produto") + '</h2><p class="erro" id="erroModal" hidden></p>' +
+      '<label class="campo">Categoria<select data-campo="prod-categoria">' +
+        dados.categorias.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === f.categoria_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("") + "</select></label>" +
+      '<label class="campo">Nome<input type="text" maxlength="60" data-campo="prod-nome" value="' + esc(f.nome) + '"></label>' +
+      '<label class="campo">Descrição (aparece no cartão do produto)<input type="text" maxlength="140" data-campo="prod-descricao" value="' + esc(f.descricao) + '"></label>' +
+      '<label class="campo">Preço (R$)<input type="text" inputmode="decimal" data-campo="prod-preco" value="' + esc(f.preco) + '"></label>' +
+      '<div class="campo">Foto<div class="foto-area">' +
+        (fotoSrc ? '<img class="foto-prev" alt="" src="' + esc(fotoSrc) + '">' : '<span class="sem-foto">sem foto</span>') +
+        '<label class="btn-mini">📷 ' + (fotoSrc ? "Trocar" : "Escolher") + '<input type="file" accept="image/*" hidden data-campo="prod-foto"></label>' +
+        (fotoSrc ? '<button type="button" class="link" data-acao="remover-foto-produto">Remover foto</button>' : "") +
+      '</div><small class="nota">A foto é reduzida e otimizada sozinha. Fotos com fundo escuro combinam melhor com o site.</small></div>' +
+      '<label class="check"><input type="checkbox" data-campo="prod-destaque"' + (f.destaque ? " checked" : "") + '> Mostrar em "Os mais pedidos" na página inicial</label>' +
+      '<label class="check"><input type="checkbox" data-campo="prod-ativo"' + (f.ativo ? " checked" : "") + '> Aparece no site (desmarque quando acabar)</label>' +
+      htmlOpcoesProduto(cat) +
+      '<div class="rodape-modal">' + (f.id ? '<button type="button" class="btn-perigo esq" data-acao="excluir-produto">Excluir</button>' : "") +
+        '<button type="button" class="btn-sec" data-acao="cancelar-modal">Cancelar</button>' +
+        '<button type="button" class="btn" id="btnSalvarModal" data-acao="salvar-produto">Salvar</button></div>'
+    );
+  }
+
+  /* ---- categoria ---- */
+  function renderModalCategoria() {
+    const f = form;
+    const temProdutos = f.id && dados.produtos.some((p) => p.categoria_id === f.id);
+    abrirModal(
+      "<h2>" + (f.id ? "Editar categoria" : "Nova categoria") + '</h2><p class="erro" id="erroModal" hidden></p>' +
+      '<label class="campo">Nome (aparece como aba no cardápio)<input type="text" maxlength="30" data-campo="cat-nome" value="' + esc(f.nome) + '"></label>' +
+      '<label class="campo">Como os produtos são vendidos<select data-campo="cat-modelo"' + (temProdutos ? " disabled" : "") + ">" +
+        Object.keys(ROTULO_MODELO).map((m) => '<option value="' + m + '"' + (m === f.modelo ? " selected" : "") + ">" + esc(ROTULO_MODELO[m]) + "</option>").join("") + "</select>" +
+        (temProdutos ? '<small class="nota">Não dá pra mudar isso enquanto a categoria tem produtos.</small>' : "") + "</label>" +
+      '<div class="rodape-modal">' + (f.id ? '<button type="button" class="btn-perigo esq" data-acao="excluir-categoria">Excluir</button>' : "") +
+        '<button type="button" class="btn-sec" data-acao="cancelar-modal">Cancelar</button>' +
+        '<button type="button" class="btn" id="btnSalvarModal" data-acao="salvar-categoria">Salvar</button></div>'
+    );
+  }
+
+  /* ---- grupo de complementos ---- */
+  function renderModalGrupo() {
+    const f = form;
+    let itens = "";
+    f.itens.forEach((it, i) => {
+      itens += '<div class="sabor-linha"><input type="text" maxlength="40" placeholder="Nome do item" data-campo="item-nome" data-i="' + i + '" value="' + esc(it.nome) + '">' +
+        '<label class="check"><input type="checkbox" data-campo="item-ativa" data-i="' + i + '"' + (it.ativa ? " checked" : "") + '> no site</label>' +
+        '<button type="button" class="btn-mini" data-acao="subir-item" data-i="' + i + '">▲</button>' +
+        '<button type="button" class="btn-mini" data-acao="descer-item" data-i="' + i + '">▼</button>' +
+        '<button type="button" class="btn-mini" title="Remover item" data-acao="remover-item" data-i="' + i + '">🗑</button></div>';
+    });
+    abrirModal(
+      "<h2>" + (f.id ? "Editar grupo" : "Novo grupo de complementos") + '</h2><p class="erro" id="erroModal" hidden></p>' +
+      '<label class="campo">Nome do grupo<input type="text" maxlength="40" data-campo="grupo-nome" value="' + esc(f.nome) + '"></label>' +
+      '<label class="campo">Quantos itens o cliente pode escolher?<input type="text" inputmode="numeric" placeholder="vazio = sem limite" data-campo="grupo-maximo" value="' + esc(f.maximo) + '"></label>' +
+      "<h3>Itens</h3>" + itens + '<button type="button" class="btn-sec" data-acao="add-item">+ Adicionar item</button>' +
+      '<div class="rodape-modal">' + (f.id ? '<button type="button" class="btn-perigo esq" data-acao="excluir-grupo">Excluir</button>' : "") +
+        '<button type="button" class="btn-sec" data-acao="cancelar-modal">Cancelar</button>' +
+        '<button type="button" class="btn" id="btnSalvarModal" data-acao="salvar-grupo">Salvar</button></div>'
+    );
+  }
+
+  /* ---------------- ações ---------------- */
+  async function comBotaoOcupado(fn) {
+    const b = el("btnSalvarModal");
+    if (b) { b.disabled = true; b.textContent = "Salvando…"; }
+    try { await fn(); return true; }
+    catch (err) {
+      erroModal(erroTexto(err));
+      if (b) { b.disabled = false; b.textContent = "Salvar"; }
+      try { await carregarTudo(); renderAba(); } catch (e) { /* segue */ }
+      return false;
+    }
+  }
+  async function depoisDeSalvar(mensagem) {
+    await carregarTudo();
+    fecharModal();
+    renderAba();
+    avisar(mensagem);
+  }
+  function trocar(lista, i, j) { if (j >= 0 && j < lista.length) [lista[i], lista[j]] = [lista[j], lista[i]]; }
+
+  async function escolherFoto(alvo, arquivo) {
+    if (!arquivo) return;
+    try {
+      const blob = await prepararImagem(arquivo);
+      if (alvo.fotoPreview) URL.revokeObjectURL(alvo.fotoPreview);
+      alvo.fotoNova = blob; alvo.fotoPreview = URL.createObjectURL(blob); alvo.fotoRemover = false;
+      if (form.tipo === "produto") renderModalProduto();
+    } catch (err) { erroModal(erroTexto(err)); }
+  }
+
+  const acoes = {
+    "novo-produto": () => { if (!dados.categorias.length) return avisar("Crie uma categoria primeiro.", true); form = novoFormProduto(null); renderModalProduto(); },
+    "editar-produto": (id) => { form = novoFormProduto(dados.produtos.find((p) => p.id === id)); renderModalProduto(); },
+    "subir-produto": async (id) => { const p = dados.produtos.find((x) => x.id === id); await moverOrdem("produtos", dados.produtos.filter((x) => x.categoria_id === p.categoria_id), id, -1); await carregarTudo(); renderAba(); },
+    "descer-produto": async (id) => { const p = dados.produtos.find((x) => x.id === id); await moverOrdem("produtos", dados.produtos.filter((x) => x.categoria_id === p.categoria_id), id, 1); await carregarTudo(); renderAba(); },
+    "novo-grupo": () => { form = { tipo: "grupo", id: null, nome: "", maximo: "", itens: [{ id: null, nome: "", ativa: true }] }; renderModalGrupo(); },
+    "editar-grupo": (id) => {
+      const g = dados.grupos.find((x) => x.id === id);
+      form = { tipo: "grupo", id, nome: g.nome, maximo: g.maximo === null || g.maximo === undefined ? "" : String(g.maximo),
+        itens: dados.opcoes.filter((o) => o.grupo_id === id).sort(porOrdem).map((o) => ({ id: o.id, nome: o.nome, ativa: o.ativa !== false })) };
+      renderModalGrupo();
+    },
+    "subir-grupo": async (id) => { await moverOrdem("grupos", dados.grupos.filter((g) => !ehGrupoDeSabor(g)), id, -1); await carregarTudo(); renderAba(); },
+    "descer-grupo": async (id) => { await moverOrdem("grupos", dados.grupos.filter((g) => !ehGrupoDeSabor(g)), id, 1); await carregarTudo(); renderAba(); },
+    "nova-categoria": () => { form = { tipo: "categoria", id: null, nome: "", modelo: "monta" }; renderModalCategoria(); },
+    "editar-categoria": (id) => { const c = dados.categorias.find((x) => x.id === id); form = { tipo: "categoria", id, nome: c.nome, modelo: c.modelo }; renderModalCategoria(); },
+    "subir-categoria": async (id) => { await moverOrdem("categorias", dados.categorias, id, -1); await carregarTudo(); renderAba(); },
+    "descer-categoria": async (id) => { await moverOrdem("categorias", dados.categorias, id, 1); await carregarTudo(); renderAba(); },
+
+    "cancelar-modal": () => fecharModal(),
+    "salvar-produto": async () => { if (await comBotaoOcupado(() => salvarProdutoCompleto(form))) await depoisDeSalvar("✅ Produto salvo."); },
+    "salvar-categoria": async () => { if (await comBotaoOcupado(() => salvarCategoriaCompleta(form))) await depoisDeSalvar("✅ Categoria salva."); },
+    "salvar-grupo": async () => { if (await comBotaoOcupado(() => salvarGrupoCompleto(form))) await depoisDeSalvar("✅ Grupo salvo."); },
+    "excluir-produto": async () => {
+      if (!confirm("Excluir este produto de vez? Se ele só acabou, é melhor desmarcar \"Aparece no site\".")) return;
+      const id = form.id;
+      if (await comBotaoOcupado(() => excluirProduto(id))) await depoisDeSalvar("Produto excluído.");
+    },
+    "excluir-categoria": async () => {
+      if (!confirm("Excluir esta categoria?")) return;
+      const id = form.id;
+      if (await comBotaoOcupado(() => excluirCategoria(id))) await depoisDeSalvar("Categoria excluída.");
+    },
+    "excluir-grupo": async () => {
+      const id = form.id;
+      const usos = dados.vinculos.filter((v) => v.grupo_id === id).length;
+      if (!confirm("Excluir este grupo e todos os itens dele?" + (usos ? " Ele deixa de aparecer em " + usos + " produto(s)." : ""))) return;
+      if (await comBotaoOcupado(() => excluirGrupo(id))) await depoisDeSalvar("Grupo excluído.");
+    },
+
+    "remover-foto-produto": () => { if (form.fotoPreview) URL.revokeObjectURL(form.fotoPreview); form.fotoNova = null; form.fotoPreview = ""; form.fotoRemover = true; renderModalProduto(); },
+    "add-sabor": () => { form.sabores.push(novoSabor()); renderModalProduto(); },
+    "remover-sabor": (id, a, i) => { form.sabores.splice(i, 1); renderModalProduto(); },
+    "subir-sabor": (id, a, i) => { trocar(form.sabores, i, i - 1); renderModalProduto(); },
+    "descer-sabor": (id, a, i) => { trocar(form.sabores, i, i + 1); renderModalProduto(); },
+    "remover-foto-sabor": (id, a, i) => { const s = form.sabores[i]; if (s.fotoPreview) URL.revokeObjectURL(s.fotoPreview); s.fotoNova = null; s.fotoPreview = ""; s.fotoRemover = true; renderModalProduto(); },
+    "add-item": () => { form.itens.push({ id: null, nome: "", ativa: true }); renderModalGrupo(); },
+    "remover-item": (id, a, i) => { form.itens.splice(i, 1); renderModalGrupo(); },
+    "subir-item": (id, a, i) => { trocar(form.itens, i, i - 1); renderModalGrupo(); },
+    "descer-item": (id, a, i) => { trocar(form.itens, i, i + 1); renderModalGrupo(); },
+  };
+
+  document.addEventListener("click", async (e) => {
+    const aba = e.target.closest && e.target.closest("[data-aba]");
+    if (aba) { abaAtual = aba.dataset.aba; avisar(""); renderAba(); return; }
+    const alvo = e.target.closest && e.target.closest("[data-acao]");
+    if (!alvo) return;
+    const fn = acoes[alvo.dataset.acao];
+    if (!fn) return;
+    try { await fn(alvo.dataset.id, alvo, Number(alvo.dataset.i)); }
+    catch (err) { avisar(erroTexto(err), true); try { await carregarTudo(); renderAba(); } catch (x) { /* segue */ } }
+  });
+
+  // campos de texto e caixas de marcar: só guardam o valor (não redesenham a janela)
+  document.addEventListener("input", (e) => {
+    const t = e.target, c = t.dataset && t.dataset.campo;
+    if (!c || !form) return;
+    const i = Number(t.dataset.i);
+    switch (c) {
+      case "prod-nome": form.nome = t.value; break;
+      case "prod-descricao": form.descricao = t.value; break;
+      case "prod-preco": form.preco = t.value; break;
+      case "prod-destaque": form.destaque = t.checked; break;
+      case "prod-ativo": form.ativo = t.checked; break;
+      case "prod-grupo": if (t.checked) form.grupos.add(t.dataset.id); else form.grupos.delete(t.dataset.id); break;
+      case "sabor-nome": form.sabores[i].nome = t.value; break;
+      case "sabor-ativa": form.sabores[i].ativa = t.checked; break;
+      case "grupo-nome": case "cat-nome": form.nome = t.value; break;
+      case "grupo-maximo": form.maximo = t.value; break;
+      case "item-nome": form.itens[i].nome = t.value; break;
+      case "item-ativa": form.itens[i].ativa = t.checked; break;
+      default: break;
+    }
+  });
+
+  document.addEventListener("change", async (e) => {
+    const t = e.target, c = t.dataset && t.dataset.campo, tog = t.dataset && t.dataset.toggle;
+    try {
+      if (tog === "produto-ativo") { await alternarAtivo("produtos", "ativo", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo."); }
+      else if (tog === "categoria-ativa") { await alternarAtivo("categorias", "ativa", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo."); }
+      else if (tog === "promo-ativa" || tog === "promo-valor") { await salvarPromocao(t.dataset.id); await carregarTudo(); avisar("✅ Salvo! Já está valendo no site."); }
+      else if (c === "prod-categoria" && form) { form.categoria_id = t.value; renderModalProduto(); }
+      else if (c === "cat-modelo" && form) { form.modelo = t.value; }
+      else if (c === "prod-foto" && form) { await escolherFoto(form, t.files && t.files[0]); }
+      else if (c === "sabor-foto" && form) { await escolherFoto(form.sabores[Number(t.dataset.i)], t.files && t.files[0]); renderModalProduto(); }
+    } catch (err) {
+      avisar(erroTexto(err), true);
+      try { await carregarTudo(); renderAba(); } catch (x) { /* segue */ }
+    }
+  });
+
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !el("modalFundo").hidden) fecharModal(); });
+
   el("formLogin").addEventListener("submit", async (e) => {
     e.preventDefault();
     const botao = el("btnEntrar");
-    botao.disabled = true;
-    botao.textContent = "Entrando...";
+    botao.disabled = true; botao.textContent = "Entrando…";
     try {
       await autenticar({ email: el("campoEmail").value.trim(), password: el("campoSenha").value }, "password");
       el("campoSenha").value = "";
       await abrirPainel();
     } catch (erro) {
-      const mensagem = erro.status === 400 || erro.status === 401
-        ? "E-mail ou senha incorretos."
-        : "Não consegui entrar agora. Confira a internet e tente de novo.";
-      mostrarLogin(mensagem);
-    } finally {
-      botao.disabled = false;
-      botao.textContent = "Entrar";
-    }
+      mostrarLogin(erro.status === 400 || erro.status === 401 ? "E-mail ou senha incorretos." : "Não consegui entrar agora. Confira a internet e tente de novo.");
+    } finally { botao.disabled = false; botao.textContent = "Entrar"; }
   });
 
-  el("btnSair").addEventListener("click", async () => {
+  el("btnSair").addEventListener("click", () => {
     const s = lerSessao();
     limparSessao();
     if (s && s.access_token) {
-      fetch(`${SUPABASE_URL}/auth/v1/logout`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${s.access_token}` },
-      }).catch(() => {});
+      fetch(SUPABASE_URL + "/auth/v1/logout", { method: "POST", headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + s.access_token } }).catch(() => {});
     }
     mostrarLogin("");
   });
 
-  // ---------------- Início ----------------
   (async function iniciar() {
     const token = await obterToken();
-    if (token) await abrirPainel();
-    else mostrarLogin("");
+    if (token) await abrirPainel(); else mostrarLogin("");
   })();
 </script>
 </body>
