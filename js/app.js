@@ -311,10 +311,14 @@
           preco: Number(p.preco),
           imagem: p.imagem || "",
           destaque: !!p.destaque,
+          categoriaId: cat.id,
         };
         if (!Number.isFinite(base.preco) || base.preco < 0) return;
 
-        const gruposDoItem = (gruposPorProduto.get(p.id) || []).map((gid) => grupoPorId.get(gid)).filter(Boolean);
+        const gruposDoItem = (gruposPorProduto.get(p.id) || [])
+          .map((gid) => grupoPorId.get(gid))
+          .filter(Boolean)
+          .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
         if (cat.modelo === "monta") {
           const grupos = gruposDoItem
@@ -556,9 +560,16 @@
   }
 
   // ---------- Tipo "montavel" (Açaí: grupos de complementos + brinde) ----------
+  // A bola de sorvete de brinde vale para os produtos da categoria Açaí
+  // (depois isso passa a ser configurado nas promoções).
+  function produtoAceitaBrinde(produto) {
+    return produto.categoriaId ? produto.categoriaId === "acai" : produto.categoria === "Açaí";
+  }
+
   function renderComplementosMontavel(produto) {
-    $("#complementoInfoBox").innerHTML =
-      "Escolha os complementos — cada grupo tem um limite de quantos itens dá pra marcar.";
+    $("#complementoInfoBox").innerHTML = gruposDoProduto(produto).length
+      ? "Escolha os complementos — cada grupo tem um limite de quantos itens dá pra marcar."
+      : "Escolha a quantidade e adicione ao carrinho.";
 
     let html = "";
     gruposDoProduto(produto).forEach((grupo) => {
@@ -578,7 +589,7 @@
     });
 
     // Brinde promocional
-    if (CONFIG.PROMOCAO_BRINDE_ACAI && CONFIG.PROMOCAO_BRINDE_ACAI.ativa) {
+    if (CONFIG.PROMOCAO_BRINDE_ACAI && CONFIG.PROMOCAO_BRINDE_ACAI.ativa && produtoAceitaBrinde(produto)) {
       html += `<h4 class="grupo-titulo brinde-titulo">🎁 ${CONFIG.PROMOCAO_BRINDE_ACAI.titulo}</h4>`;
       html += `<div class="sabores-grid" id="brindeGrid">`;
       CONFIG.PROMOCAO_BRINDE_ACAI.sabores.forEach((sabor) => {
