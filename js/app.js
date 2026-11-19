@@ -79,64 +79,234 @@
   }
 
   /* ---------------------------------------------------------
-   * PROMOÇÕES (Supabase — editável pelo painel admin.html)
+   * PROMOÇÕES (Supabase, editáveis no painel admin.html)
+   * Tipos: percentual | pacote_preco | leve_ganhe | upgrade | brinde | informativa
+   * Regras: combos (pacote por preço e leve-ganhe) travam os itens que usam,
+   * e entre os descontos em porcentagem só o MAIOR vale (eles não somam).
    * --------------------------------------------------------- */
   const SUPABASE_URL = "https://bmsgygpjubdzauxlztth.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtc2d5Z3BqdWJkemF1eGx6dHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjg3NTYsImV4cCI6MjEwNDgwNDc1Nn0.ppi8E0KH_wzoP2OsFgPkSAOgneDMJLKxWQ_Dmi9qMbw";
 
+  // Regras "de fábrica": valem se a tabela ainda não tiver as colunas novas
+  // (ou seja, antes de rodar o SQL da etapa 3a). São as mesmas regras de antes.
+  const PROMOS_LEGADO = {
+    "desconto-geral": { tipo: "percentual", escopo: "todos", alvos: [] },
+    "desconto-cravejado": { tipo: "percentual", escopo: "produtos", alvos: ["acai-cravejado-500", "acai-cravejado-700", "acai-cravejado-1000"] },
+    "trio-300-30": { tipo: "pacote_preco", escopo: "produtos", alvos: ["acai-300"], quantidade: 3 },
+    "leve2ganhe1-700": { tipo: "leve_ganhe", escopo: "produtos", alvos: ["acai-700", "acai-cravejado-700"], quantidade: 2, brinde_quantidade: 1, alvos_brinde: ["acai-500", "acai-cravejado-500"] },
+    "leve2ganhe1-500": { tipo: "leve_ganhe", escopo: "produtos", alvos: ["acai-500", "acai-cravejado-500"], quantidade: 2, brinde_quantidade: 1, alvos_brinde: ["acai-300"] },
+    "upgrade-tamanho": { tipo: "upgrade", escopo: "produtos", alvos: ["acai-300"], alvos_brinde: ["acai-500"] },
+  };
+
+  function normalizarPromocao(p) {
+    const legado = !p.tipo;
+    const base = legado ? Object.assign({}, p, PROMOS_LEGADO[p.id] || { tipo: "informativa" }) : p;
+    const lista = (v) => (Array.isArray(v) ? v : []);
+    return {
+      id: p.id,
+      nome: p.nome || "Promoção",
+      ativa: !!p.ativa,
+      tipo: base.tipo,
+      escopo: base.escopo || "todos",
+      alvos: lista(base.alvos),
+      alvos_brinde: lista(base.alvos_brinde),
+      quantidade: Number(base.quantidade) || 0,
+      brinde_quantidade: Number(base.brinde_quantidade) || 1,
+      valor: base.valor === null || base.valor === undefined ? null : Number(base.valor),
+      descricao: legado ? "" : p.descricao || "",
+      brinde_titulo: base.brinde_titulo || "",
+      brinde_item: base.brinde_item || "brinde",
+      brinde_opcoes: lista(base.brinde_opcoes),
+      inicio: base.inicio || null,
+      fim: base.fim || null,
+      ordem: Number(base.ordem) || 0,
+    };
+  }
+
+  // <promocoes-motor>
+  const arredonda = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const moeda = (v) => "R$ " + arredonda(v).toFixed(2).replace(".", ",");
+  const numero = (v) => String(v).replace(".", ",");
+
+  function promocaoVigente(p, hoje) {
+    if (!p || !p.ativa) return false;
+    if (p.inicio && hoje < String(p.inicio).slice(0, 10)) return false;
+    if (p.fim && hoje > String(p.fim).slice(0, 10)) return false;
+    return true;
+  }
+
+  function unidadeNoEscopo(un, escopo, alvos) {
+    const lista = Array.isArray(alvos) ? alvos : [];
+    if (escopo === "todos") return true;
+    if (escopo === "categorias") return lista.includes(un.categoriaId);
+    if (escopo === "produtos") return lista.includes(un.produtoId);
+    return false;
+  }
+
+  // Cada item do carrinho vira uma "unidade" (3 açaís iguais = 3 unidades).
+  function expandirCarrinho(itens) {
+    const unidades = [];
+    itens.forEach((item) => {
+      for (let k = 0; k < item.quantidade; k++) {
+        unidades.push({ produtoId: item.produtoId, categoriaId: item.categoriaId || "", preco: Number(item.precoUnitario), travada: !!item.upgradeId });
+      }
+    });
+    return unidades;
+  }
+
+  // Tenta aplicar um combo uma vez. Devolve null ou { economia, usadas }.
+  function tentarCombo(promo, unidades) {
+    const livres = unidades.filter((u) => !u.travada);
+    if (promo.tipo === "pacote_preco") {
+      const n = promo.quantidade;
+      if (!(n >= 1) || promo.valor === null || promo.valor === undefined) return null;
+      const elegiveis = livres.filter((u) => unidadeNoEscopo(u, promo.escopo, promo.alvos)).sort((a, b) => a.preco - b.preco);
+      if (elegiveis.length < n) return null;
+      const usadas = elegiveis.slice(0, n);
+      const economia = arredonda(usadas.reduce((s, u) => s + u.preco, 0) - promo.valor);
+      return economia > 0 ? { economia, usadas } : null;
+    }
+    if (promo.tipo === "leve_ganhe") {
+      const n = promo.quantidade;
+      const m = promo.brinde_quantidade;
+      if (!(n >= 1) || !(m >= 1)) return null;
+      const presentes = livres.filter((u) => unidadeNoEscopo(u, "produtos", promo.alvos_brinde)).sort((a, b) => a.preco - b.preco).slice(0, m);
+      if (presentes.length < m) return null;
+      const compra = livres.filter((u) => unidadeNoEscopo(u, promo.escopo, promo.alvos) && !presentes.includes(u)).sort((a, b) => a.preco - b.preco);
+      if (compra.length < n) return null;
+      const economia = arredonda(presentes.reduce((s, u) => s + u.preco, 0));
+      return economia > 0 ? { economia, usadas: compra.slice(0, n).concat(presentes) } : null;
+    }
+    return null;
+  }
+
+  // Calcula todos os descontos do carrinho.
+  function calcularPromocoes(itens, promocoes, hoje) {
+    const unidades = expandirCarrinho(itens);
+    const subtotal = arredonda(unidades.reduce((s, u) => s + u.preco, 0));
+    const ativas = promocoes.filter((p) => promocaoVigente(p, hoje));
+    const combos = ativas.filter((p) => p.tipo === "pacote_preco" || p.tipo === "leve_ganhe");
+    const aplicadas = {};
+    let desconto = 0;
+
+    // 1) combos: a cada rodada aplica o que dá mais economia; os itens usados ficam travados
+    for (let guarda = 0; guarda <= unidades.length; guarda++) {
+      let melhor = null;
+      combos.forEach((p) => {
+        const t = tentarCombo(p, unidades);
+        if (t && (!melhor || t.economia > melhor.t.economia + 1e-9)) melhor = { p, t };
+      });
+      if (!melhor) break;
+      melhor.t.usadas.forEach((u) => { u.travada = true; });
+      desconto += melhor.t.economia;
+      const a = aplicadas[melhor.p.id] || (aplicadas[melhor.p.id] = { id: melhor.p.id, nome: melhor.p.nome, tipo: melhor.p.tipo, vezes: 0, economia: 0 });
+      a.vezes += 1;
+      a.economia = arredonda(a.economia + melhor.t.economia);
+    }
+    const linhas = Object.values(aplicadas).map((a) => "🎉 " + a.nome + " (" + a.vezes + "x aplicado) — economia de " + moeda(a.economia));
+    const resultado = Object.values(aplicadas);
+
+    // 2) desconto em porcentagem nos itens que sobraram: só o MAIOR vale
+    let melhorPct = null;
+    ativas.filter((p) => p.tipo === "percentual" && p.valor > 0).forEach((p) => {
+      const base = unidades.filter((u) => !u.travada && unidadeNoEscopo(u, p.escopo, p.alvos)).reduce((s, u) => s + u.preco, 0);
+      const economia = arredonda((base * Math.min(p.valor, 100)) / 100);
+      if (economia > 0 && (!melhorPct || economia > melhorPct.economia + 1e-9)) melhorPct = { id: p.id, nome: p.nome, tipo: "percentual", valor: p.valor, economia };
+    });
+    if (melhorPct) {
+      desconto += melhorPct.economia;
+      linhas.push("🔥 " + melhorPct.nome + " (" + numero(melhorPct.valor) + "%) — economia de " + moeda(melhorPct.economia));
+      resultado.push({ id: melhorPct.id, nome: melhorPct.nome, tipo: "percentual", vezes: 1, economia: melhorPct.economia });
+    }
+
+    return {
+      subtotal,
+      desconto: arredonda(Math.min(Math.max(desconto, 0), subtotal)),
+      linhas,
+      aplicadas: resultado,
+      travadas: unidades.filter((u) => u.travada).length,
+    };
+  }
+  // </promocoes-motor>
+
+  const hojeISO = () => {
+    const d = new Date();
+    const z = (n) => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
+  };
+
+  function slugId(texto) {
+    return String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  // Id da categoria do produto (produtos do config.js não têm: usa o nome sem acento)
+  const categoriaIdDe = (produto) => (produto && (produto.categoriaId || slugId(produto.categoria))) || "";
+
+  const promocoesVigentes = () => (state.promocoes || []).filter((p) => promocaoVigente(p, hojeISO()));
+
+  function nomesDoEscopo(escopo, alvos) {
+    if (escopo === "produtos") return alvos.map((id) => (CONFIG.PRODUTOS.find((p) => p.id === id) || {}).nome).filter(Boolean);
+    if (escopo === "categorias") {
+      return alvos.map((id) => (CONFIG.PRODUTOS.find((p) => categoriaIdDe(p) === id) || {}).categoria).filter(Boolean);
+    }
+    return [];
+  }
+  function juntarNomes(nomes, conjuncao) {
+    if (nomes.length === 0) return "";
+    if (nomes.length === 1) return nomes[0];
+    if (nomes.length > 3) return "produtos selecionados";
+    return nomes.slice(0, -1).join(", ") + " " + (conjuncao || "e") + " " + nomes[nomes.length - 1];
+  }
+
+  // Texto do cartão de promoção: o que o cliente escreveu no painel, ou um texto gerado
+  // (sempre com os valores atuais).
+  function descricaoPromocao(p) {
+    if (p.descricao) return p.descricao;
+    const onde = juntarNomes(nomesDoEscopo(p.escopo, p.alvos), "ou");
+    const ganha = juntarNomes(nomesDoEscopo("produtos", p.alvos_brinde), "ou");
+    switch (p.tipo) {
+      case "percentual":
+        return numero(p.valor) + "% de desconto " + (p.escopo === "todos" ? "em todos os pedidos" : "em " + (juntarNomes(nomesDoEscopo(p.escopo, p.alvos)) || "produtos selecionados")) + ".";
+      case "pacote_preco":
+        return "Leve " + p.quantidade + " " + (onde || "produtos") + " por " + formatBRL(p.valor) + ".";
+      case "leve_ganhe":
+        return "Compre " + p.quantidade + " " + (onde || "produtos") + " e ganhe " + p.brinde_quantidade + " " + (ganha || "produto") + " grátis.";
+      case "upgrade":
+        return "Troque seu " + (onde || "produto") + " pelo " + (ganha || "tamanho maior") + " pagando só +" + formatBRL(p.valor) + ".";
+      case "brinde":
+        return p.brinde_titulo || "Ganhe " + p.brinde_item + " grátis.";
+      default:
+        return "";
+    }
+  }
+
   async function initPromocoes() {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/promocoes?select=*`, {
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-        },
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Falha ao buscar promoções");
-      state.promocoes = await res.json();
+      const linhas = await res.json();
+      state.promocoes = linhas.map(normalizarPromocao).sort((a, b) => a.ordem - b.ordem || String(a.nome).localeCompare(String(b.nome)));
     } catch (e) {
-      state.promocoes = []; // Supabase fora do ar ou ainda não configurado — segue sem promoção
+      state.promocoes = []; // Supabase fora do ar ou ainda não configurado: segue sem promoção
     }
     renderBannerPromocao();
     renderCombos();
     atualizarValoresCarrinho();
   }
 
-  function promocaoAtiva(id) {
-    return (state.promocoes || []).find((p) => p.id === id && p.ativa);
-  }
-
   function renderBannerPromocao() {
     const el = $("#bannerPromocao");
     if (!el) return;
-    const desconto = promocaoAtiva("desconto-geral");
-    if (desconto) {
-      el.innerHTML = `<strong>🔥 ${desconto.valor}% de desconto</strong> em todos os pedidos!`;
+    const melhor = promocoesVigentes()
+      .filter((p) => p.tipo === "percentual" && p.escopo === "todos" && p.valor > 0)
+      .sort((a, b) => b.valor - a.valor)[0];
+    if (melhor) {
+      el.innerHTML = `<strong>🔥 ${esc(numero(melhor.valor))}% de desconto</strong> em todos os pedidos!`;
       el.hidden = false;
     } else {
       el.hidden = true;
-    }
-  }
-
-  // Gera uma descrição mais natural pra cada promoção, sempre usando o
-  // valor atual configurado no painel (em vez do texto fixo salvo no banco).
-  function descricaoPromocao(p) {
-    switch (p.id) {
-      case "upgrade-tamanho":
-        return `Troque seu açaí de 300ml pelo de 500ml pagando só +${formatBRL(p.valor)}.`;
-      case "trio-300-30":
-        return `Compre 3 Açaís de 300ml e pague só ${formatBRL(p.valor)} no total.`;
-      case "leve2ganhe1-700":
-        return `Compre 2 Açaís de 700ml e ganhe 1 Açaí de 500ml grátis.`;
-      case "leve2ganhe1-500":
-        return `Compre 2 Açaís de 500ml e ganhe 1 Açaí de 300ml grátis.`;
-      case "desconto-geral":
-        return `${p.valor}% de desconto em todos os pedidos.`;
-      case "desconto-cravejado":
-        return `${p.valor}% de desconto em qualquer Açaí Cravejado.`;
-      default:
-        return p.descricao || "";
     }
   }
 
@@ -144,118 +314,59 @@
     const section = $("#combosSection");
     const grid = $("#combosGrid");
     if (!section || !grid) return;
-    const ativos = (state.promocoes || []).filter((p) => p.ativa);
-
+    const ativos = promocoesVigentes().filter((p) => p.tipo !== "informativa" || p.descricao);
     if (ativos.length === 0) {
       section.hidden = true;
       return;
     }
     section.hidden = false;
     grid.innerHTML = ativos
-      .map(
-        (p) => `
+      .map((p) => `
       <div class="combo-card">
         <h3>${esc(p.nome)}</h3>
         <p>${esc(descricaoPromocao(p))}</p>
-      </div>`
-      )
+      </div>`)
       .join("");
   }
 
-  function calcularDesconto(subtotal) {
-    const d = promocaoAtiva("desconto-geral");
-    return d && d.valor > 0 ? subtotal * (d.valor / 100) : 0;
+  // Desconto total do carrinho (usado no carrinho, no resumo e na mensagem do WhatsApp).
+  function calcularDescontoTotal() {
+    const itens = state.cart.map((i) => ({
+      produtoId: i.produtoId,
+      categoriaId: i.categoriaId || "",
+      precoUnitario: i.precoUnitario,
+      quantidade: i.quantidade,
+      upgradeId: i.upgradeId || null,
+    }));
+    const r = calcularPromocoes(itens, state.promocoes || [], hojeISO());
+    return { valor: r.desconto, linhas: r.linhas };
   }
 
-  // Soma a quantidade de um produto específico espalhada pelo carrinho
-  // (o cliente pode ter adicionado o mesmo tamanho em "montagens" diferentes).
-  function quantidadeNoCarrinho(produtoId) {
-    return state.cart
-      .filter((i) => i.produtoId === produtoId)
-      .reduce((s, i) => s + i.quantidade, 0);
+  // Promoção de upgrade ativa para este produto (ex.: Açaí 300ml -> 500ml pagando a diferença).
+  function promocaoUpgradeDoProduto(produto) {
+    const hoje = hojeISO();
+    for (const p of state.promocoes || []) {
+      if (p.tipo !== "upgrade" || !promocaoVigente(p, hoje) || p.valor === null) continue;
+      if (!unidadeNoEscopo({ produtoId: produto.id, categoriaId: categoriaIdDe(produto) }, p.escopo, p.alvos)) continue;
+      const alvo = CONFIG.PRODUTOS.find((x) => x.id === p.alvos_brinde[0]);
+      if (alvo && alvo.id !== produto.id) return { promo: p, alvo };
+    }
+    return null;
   }
 
-  function precoDoProduto(produtoId) {
-    const p = CONFIG.PRODUTOS.find((p) => p.id === produtoId);
-    return p ? p.preco : 0;
-  }
-
-  // Detecta sozinho as promoções por quantidade (trio, leve-2-ganhe-1) e
-  // calcula o desconto + as linhas explicativas pro resumo/WhatsApp.
-  function calcularPromocoesAutomaticas() {
-    let valorDesconto = 0;
-    const linhas = [];
-
-    const qtd300 = quantidadeNoCarrinho("acai-300");
-    const qtd500 = quantidadeNoCarrinho("acai-500") + quantidadeNoCarrinho("acai-cravejado-500");
-    const qtd700 = quantidadeNoCarrinho("acai-700") + quantidadeNoCarrinho("acai-cravejado-700");
-
-    const trio = promocaoAtiva("trio-300-30");
-    if (trio) {
-      const sets = Math.floor(qtd300 / 3);
-      if (sets > 0) {
-        const precoNormal = precoDoProduto("acai-300") * 3;
-        const economiaPorSet = precoNormal - trio.valor;
-        if (economiaPorSet > 0) {
-          const economiaTotal = economiaPorSet * sets;
-          valorDesconto += economiaTotal;
-          linhas.push(`🎉 ${trio.nome} (${sets}x aplicado) — economia de ${formatBRL(economiaTotal)}`);
-        }
-      }
+  // Brinde (ex.: bola de sorvete) ativo para este produto.
+  function brindeDoProduto(produto) {
+    const hoje = hojeISO();
+    const un = { produtoId: produto.id, categoriaId: categoriaIdDe(produto) };
+    const p = (state.promocoes || []).find((x) => x.tipo === "brinde" && promocaoVigente(x, hoje) && x.brinde_opcoes.length && unidadeNoEscopo(un, x.escopo, x.alvos));
+    if (p) return { titulo: p.brinde_titulo || "Ganhe " + p.brinde_item + " grátis!", item: p.brinde_item, opcoes: p.brinde_opcoes };
+    // Antes de rodar o SQL da etapa 3a, o brinde ainda vem do config.js
+    const migrou = (state.promocoes || []).some((x) => x.tipo === "brinde");
+    const antigo = CONFIG.PROMOCAO_BRINDE_ACAI;
+    if (!migrou && antigo && antigo.ativa && produtoAceitaBrinde(produto)) {
+      return { titulo: antigo.titulo, item: "bola de sorvete", opcoes: antigo.sabores };
     }
-
-    const leve700 = promocaoAtiva("leve2ganhe1-700");
-    if (leve700) {
-      const sets = Math.floor(qtd700 / 2);
-      const gratisPossiveis = Math.min(sets, qtd500);
-      if (gratisPossiveis > 0) {
-        const economia = gratisPossiveis * precoDoProduto("acai-500");
-        valorDesconto += economia;
-        linhas.push(`🎉 ${leve700.nome} (${gratisPossiveis}x 500ml grátis) — economia de ${formatBRL(economia)}`);
-      }
-    }
-
-    const leve500 = promocaoAtiva("leve2ganhe1-500");
-    if (leve500) {
-      const sets = Math.floor(qtd500 / 2);
-      const gratisPossiveis = Math.min(sets, qtd300);
-      if (gratisPossiveis > 0) {
-        const economia = gratisPossiveis * precoDoProduto("acai-300");
-        valorDesconto += economia;
-        linhas.push(`🎉 ${leve500.nome} (${gratisPossiveis}x 300ml grátis) — economia de ${formatBRL(economia)}`);
-      }
-    }
-
-    return { valorDesconto, linhas };
-  }
-
-  // Junta o desconto percentual (geral) com as promoções automáticas de
-  // quantidade — usado em todo lugar que precisa do total com desconto.
-  function calcularDescontoTotal(subtotal) {
-    const automaticas = calcularPromocoesAutomaticas();
-    const linhas = [...automaticas.linhas];
-    let valor = automaticas.valorDesconto;
-
-    const geral = promocaoAtiva("desconto-geral");
-    if (geral && geral.valor > 0) {
-      const vGeral = subtotal * (geral.valor / 100);
-      valor += vGeral;
-      linhas.push(`🔥 ${geral.valor}% de desconto geral — economia de ${formatBRL(vGeral)}`);
-    }
-
-    const cravejado = promocaoAtiva("desconto-cravejado");
-    if (cravejado && cravejado.valor > 0) {
-      const subtotalCravejado = state.cart
-        .filter((i) => i.produtoId.startsWith("acai-cravejado"))
-        .reduce((s, i) => s + i.precoUnitario * i.quantidade, 0);
-      if (subtotalCravejado > 0) {
-        const vCravejado = subtotalCravejado * (cravejado.valor / 100);
-        valor += vCravejado;
-        linhas.push(`🔥 ${cravejado.valor}% de desconto no Açaí Cravejado — economia de ${formatBRL(vCravejado)}`);
-      }
-    }
-
-    return { valor, linhas };
+    return null;
   }
 
   /* ---------------------------------------------------------
@@ -539,6 +650,8 @@
     state.modal.saborSelecionado = null;
     state.modal.brindeSelecionado = null;
     state.modal.upgradeAtivo = false;
+    state.modal.brindeInfo = null;
+    state.modal.upgradeInfo = null;
     state.modal.quantidade = 1;
 
     $("#produtoModalTitulo").textContent = produto.nome;
@@ -588,31 +701,35 @@
       html += `</div>`;
     });
 
-    // Brinde promocional
-    if (CONFIG.PROMOCAO_BRINDE_ACAI && CONFIG.PROMOCAO_BRINDE_ACAI.ativa && produtoAceitaBrinde(produto)) {
-      html += `<h4 class="grupo-titulo brinde-titulo">🎁 ${CONFIG.PROMOCAO_BRINDE_ACAI.titulo}</h4>`;
+    // Brinde (promoção do tipo "brinde" no painel)
+    const brinde = brindeDoProduto(produto);
+    state.modal.brindeInfo = brinde;
+    if (brinde) {
+      html += `<h4 class="grupo-titulo brinde-titulo">🎁 ${esc(brinde.titulo)}</h4>`;
       html += `<div class="sabores-grid" id="brindeGrid">`;
-      CONFIG.PROMOCAO_BRINDE_ACAI.sabores.forEach((sabor) => {
-        const thumb = sabor.imagem
-          ? `<span class="sabor-thumb" style="background-image:url('${sabor.imagem}')"></span>`
+      brinde.opcoes.forEach((opcao) => {
+        const imagem = urlSegura(opcao.imagem);
+        const thumb = imagem
+          ? `<span class="sabor-thumb" style="background-image:url('${imagem}')"></span>`
           : `<span class="sabor-thumb sabor-thumb-vazio">🍨</span>`;
         html += `
-          <button type="button" class="sabor-item" data-sabor="${sabor.nome}">
+          <button type="button" class="sabor-item" data-sabor="${esc(opcao.nome)}">
             ${thumb}
-            <span class="sabor-nome">${sabor.nome}</span>
+            <span class="sabor-nome">${esc(opcao.nome)}</span>
           </button>`;
       });
       html += `</div>`;
     }
 
-    // Upgrade de tamanho (só aparece no Açaí 300ml, quando a promoção está ativa)
-    const upgrade = produto.id === "acai-300" ? promocaoAtiva("upgrade-tamanho") : null;
+    // Upgrade de tamanho (aparece quando há promoção de upgrade ativa para este produto)
+    const upgrade = promocaoUpgradeDoProduto(produto);
+    state.modal.upgradeInfo = upgrade;
     if (upgrade) {
       html += `
         <div class="upgrade-promo" id="upgradePromoBox">
           <label class="upgrade-check">
             <input type="checkbox" id="upgradeCheckbox" />
-            <span>🎉 Troque seu açaí de 300ml pelo de 500ml pagando só +${formatBRL(upgrade.valor)}</span>
+            <span>🎉 Troque seu ${esc(produto.nome)} pelo ${esc(upgrade.alvo.nome)} pagando só +${formatBRL(upgrade.promo.valor)}</span>
           </label>
         </div>`;
     }
@@ -732,12 +849,11 @@
     const produto = state.modal.produto;
     let precoUnitario = produto.preco;
 
-    if (state.modal.upgradeAtivo) {
-      const upgrade = promocaoAtiva("upgrade-tamanho");
-      if (upgrade) precoUnitario += upgrade.valor;
+    if (state.modal.upgradeAtivo && state.modal.upgradeInfo) {
+      precoUnitario += state.modal.upgradeInfo.promo.valor;
     }
 
-    const total = precoUnitario * state.modal.quantidade;
+    const total = Math.round(precoUnitario * state.modal.quantidade * 100) / 100;
     $("#produtoModalTotal").textContent = formatBRL(total);
   }
 
@@ -778,28 +894,32 @@
       descricaoItens = [`Sabor: ${state.modal.saborSelecionado}`];
     }
 
-    if (state.modal.brindeSelecionado) {
-      descricaoItens.push(`🎁 Brinde: bola de sorvete (${state.modal.brindeSelecionado})`);
+    if (state.modal.brindeSelecionado && state.modal.brindeInfo) {
+      descricaoItens.push(`🎁 Brinde: ${state.modal.brindeInfo.item} (${state.modal.brindeSelecionado})`);
     }
 
-    // Upgrade de tamanho (300ml -> 500ml pagando a diferença configurada)
+    // Upgrade de tamanho: o item vira o produto de destino, pagando a diferença configurada
     let produtoIdFinal = produto.id;
     let nomeFinal = produto.nome;
     let precoFinal = produto.preco;
+    let categoriaFinal = categoriaIdDe(produto);
+    let upgradeId = null;
 
-    if (state.modal.upgradeAtivo) {
-      const upgrade = promocaoAtiva("upgrade-tamanho");
-      if (upgrade) {
-        produtoIdFinal = "acai-500"; // conta como 500ml pra fins de outras promoções por quantidade
-        nomeFinal = "Açaí 500ml";
-        precoFinal = produto.preco + upgrade.valor;
-        descricaoItens.push(`🎉 ${upgrade.nome}: 300ml → 500ml (+${formatBRL(upgrade.valor)})`);
-      }
+    if (state.modal.upgradeAtivo && state.modal.upgradeInfo) {
+      const { promo, alvo } = state.modal.upgradeInfo;
+      produtoIdFinal = alvo.id;
+      nomeFinal = alvo.nome;
+      precoFinal = Math.round((produto.preco + promo.valor) * 100) / 100;
+      categoriaFinal = categoriaIdDe(alvo);
+      upgradeId = promo.id;
+      descricaoItens.push(`🎉 ${promo.nome}: ${produto.nome} → ${alvo.nome} (+${formatBRL(promo.valor)})`);
     }
 
     state.cart.push({
       uid: uid(),
       produtoId: produtoIdFinal,
+      categoriaId: categoriaFinal,
+      upgradeId,
       nome: nomeFinal,
       precoUnitario: precoFinal,
       itens: descricaoItens,
@@ -826,11 +946,10 @@
 
   function renderCart() {
     const container = $("#carrinhoItens");
-    const vazio = $("#carrinhoVazioMsg");
 
     if (state.cart.length === 0) {
-      container.innerHTML = "";
-      container.appendChild(vazio);
+      // (a mensagem é recriada aqui: antes ela era um elemento fixo que sumia quando entrava o 1º item)
+      container.innerHTML = '<p class="carrinho-vazio" id="carrinhoVazioMsg">Seu carrinho está vazio. Que tal um açaí agora?</p>';
       $("#btnIrCheckout").disabled = true;
     } else {
       container.innerHTML = state.cart
