@@ -93,6 +93,10 @@
   .sabor-linha{ display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
   .sabor-linha input[type="text"]{ flex:1; min-width:130px; padding:8px 10px; border-radius:9px; border:1.5px solid rgba(44,10,51,.2); font-size:14px; }
   .sabor-linha .check{ margin:0; }
+  .lista-marcar{ max-height:190px; overflow:auto; border:1.5px solid var(--linha); border-radius:10px; padding:4px 10px; margin:6px 0 4px; }
+  .lista-marcar h4{ margin:8px 0 2px; font-size:12px; color: var(--suave); }
+  .duas-colunas{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .campo input[type="number"], .campo input[type="date"], .campo textarea{ display:block; width:100%; margin-top:5px; padding:10px 12px; border-radius:10px; border:1.5px solid rgba(44,10,51,.2); font-size:14.5px; font-family:inherit; background:#fff; }
   small.nota{ display:block; font-size:12px; color: var(--suave); margin-top:4px; }
   .promo-valor{ display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color: var(--suave); }
   .promo-valor input{ width:80px; padding:6px 8px; border-radius:8px; border:1.5px solid rgba(44,10,51,.2); font-size:13px; }
@@ -281,7 +285,7 @@
       grupos: grupos.sort(porOrdem),
       opcoes: opcoes.sort(porOrdem),
       vinculos,
-      promocoes: promocoes.sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
+      promocoes: promocoes.sort(porOrdem),
     };
   }
 
@@ -545,17 +549,154 @@
   }
 
   /* ---------------- gravação: promoções ---------------- */
-  async function salvarPromocao(id) {
-    const ativaEl = document.querySelector('[data-toggle="promo-ativa"][data-id="' + id + '"]');
-    const valorEl = document.querySelector('[data-toggle="promo-valor"][data-id="' + id + '"]');
-    const corpo = { ativa: ativaEl.checked };
-    if (valorEl) {
-      const v = parseFloat(valorEl.value);
-      if (Number.isNaN(v) || v < 0) throw new Error("Digite um valor válido (zero ou maior).");
-      if (id.startsWith("desconto") && v > 50) throw new Error("O desconto em porcentagem vai de 0 a 50.");
-      corpo.valor = v;
+  const TIPOS_PROMO = {
+    percentual: "Desconto em porcentagem",
+    pacote_preco: "Pacote por preço fechado (ex.: 3 por R$ 30)",
+    leve_ganhe: "Leve X e ganhe Y",
+    upgrade: "Troca de tamanho pagando a diferença",
+    brinde: "Brinde ao comprar",
+    informativa: "Só um aviso (sem desconto)",
+  };
+
+  const nomeProduto = (id) => (dados.produtos.find((p) => p.id === id) || {}).nome;
+  const nomeCategoria = (id) => (dados.categorias.find((c) => c.id === id) || {}).nome;
+  function juntar(nomes, conj) {
+    const l = nomes.filter(Boolean);
+    if (l.length <= 1) return l[0] || "";
+    return l.slice(0, -1).join(", ") + " " + (conj || "e") + " " + l[l.length - 1];
+  }
+  const dataBR = (d) => (d ? String(d).slice(8, 10) + "/" + String(d).slice(5, 7) : "");
+
+  function resumoPromocao(p) {
+    const onde = (escopo, alvos) => escopo === "todos" ? "todos os produtos"
+      : (juntar((escopo === "categorias" ? alvos.map(nomeCategoria) : alvos.map(nomeProduto))) || "(nada escolhido)");
+    const alvos = Array.isArray(p.alvos) ? p.alvos : [];
+    const alvosBrinde = Array.isArray(p.alvos_brinde) ? p.alvos_brinde : [];
+    let t;
+    switch (p.tipo) {
+      case "percentual": t = p.valor + "% de desconto em " + onde(p.escopo, alvos); break;
+      case "pacote_preco": t = "Leve " + p.quantidade + " por " + brl(p.valor) + ": " + onde(p.escopo, alvos); break;
+      case "leve_ganhe": t = "Compre " + p.quantidade + " (" + onde(p.escopo, alvos) + ") e ganhe " + p.brinde_quantidade + " (" + onde("produtos", alvosBrinde) + ")"; break;
+      case "upgrade": t = "Troca de " + onde("produtos", alvos) + " por " + (nomeProduto(alvosBrinde[0]) || "?") + " pagando +" + brl(p.valor); break;
+      case "brinde": t = "Brinde (" + (p.brinde_item || "brinde") + ") ao comprar " + onde(p.escopo, alvos); break;
+      default: t = p.descricao || "Aviso na página inicial";
     }
-    await atualizar("promocoes", "id", id, corpo);
+    if (p.inicio || p.fim) t += " · " + (p.inicio ? "de " + dataBR(p.inicio) : "") + (p.fim ? " até " + dataBR(p.fim) : "");
+    return t;
+  }
+
+  function novoFormPromocao(p) {
+    const tp = p ? (p.tipo || "informativa") : "percentual";
+    return {
+      tipo: "promocao",
+      id: p ? p.id : null,
+      nome: p ? p.nome : "",
+      tipoPromo: tp,
+      escopo: p ? (p.escopo || "todos") : "todos",
+      alvos: new Set(p && Array.isArray(p.alvos) ? p.alvos : []),
+      alvosBrinde: new Set(p && Array.isArray(p.alvos_brinde) ? p.alvos_brinde : []),
+      para: p && Array.isArray(p.alvos_brinde) ? (p.alvos_brinde[0] || "") : "",
+      quantidade: p && p.quantidade ? String(p.quantidade) : "",
+      brindeQuantidade: p && p.brinde_quantidade ? String(p.brinde_quantidade) : "1",
+      valor: p && p.valor !== null && p.valor !== undefined ? String(p.valor).replace(".", ",") : "",
+      descricao: p ? (p.descricao || "") : "",
+      inicio: p ? (p.inicio || "") : "",
+      fim: p ? (p.fim || "") : "",
+      ativa: p ? !!p.ativa : false,
+      brindeTitulo: p ? (p.brinde_titulo || "") : "",
+      brindeItem: p ? (p.brinde_item || "") : "",
+      opcoes: p && Array.isArray(p.brinde_opcoes) ? p.brinde_opcoes.map((o) => ({ nome: o.nome, imagemAtual: o.imagem || "", fotoNova: null, fotoPreview: "", fotoRemover: false })) : [],
+    };
+  }
+  const novaOpcaoBrinde = () => ({ nome: "", imagemAtual: "", fotoNova: null, fotoPreview: "", fotoRemover: false });
+
+  function lerInteiro(txt, min, max, mensagem) {
+    const t = String(txt ?? "").trim();
+    const n = Number(t);
+    if (t === "" || !Number.isInteger(n) || n < min || n > max) throw new Error(mensagem);
+    return n;
+  }
+
+  async function salvarPromocaoCompleta(f) {
+    const nome = String(f.nome || "").trim();
+    if (!nome) throw new Error("Digite o nome da promoção.");
+    const tipo = f.tipoPromo;
+    if (!TIPOS_PROMO[tipo]) throw new Error("Escolha o tipo da promoção.");
+    if (f.inicio && f.fim && f.inicio > f.fim) throw new Error("A data final não pode ser antes da data inicial.");
+
+    const escopo = tipo === "upgrade" ? "produtos" : tipo === "informativa" ? "todos" : f.escopo;
+    const alvos = escopo === "todos" ? [] : [...f.alvos];
+    if (escopo !== "todos" && alvos.length === 0) throw new Error("Escolha onde a promoção vale (marque pelo menos um item).");
+
+    const corpo = {
+      nome, tipo, escopo, alvos,
+      quantidade: null, brinde_quantidade: 1, alvos_brinde: [], valor: null,
+      descricao: String(f.descricao || "").trim() || null,
+      inicio: f.inicio || null, fim: f.fim || null,
+      brinde_titulo: null, brinde_item: null, brinde_opcoes: [],
+      ativa: !!f.ativa,
+    };
+
+    if (tipo === "percentual") {
+      const v = Number(String(f.valor).replace(",", "."));
+      if (!Number.isFinite(v) || v <= 0 || v > 50) throw new Error("O desconto em porcentagem vai de 1 a 50.");
+      corpo.valor = v;
+    } else if (tipo === "pacote_preco") {
+      corpo.quantidade = lerInteiro(f.quantidade, 2, 20, "Digite quantas unidades formam o pacote (de 2 a 20).");
+      const v = lerPreco(f.valor);
+      if (v === null) throw new Error("Digite o preço do pacote, por exemplo 30.");
+      corpo.valor = v;
+    } else if (tipo === "leve_ganhe") {
+      corpo.quantidade = lerInteiro(f.quantidade, 1, 20, "Digite quantas unidades o cliente precisa comprar (de 1 a 20).");
+      corpo.brinde_quantidade = lerInteiro(f.brindeQuantidade, 1, 10, "Digite quantas unidades o cliente ganha (de 1 a 10).");
+      corpo.alvos_brinde = [...f.alvosBrinde];
+      if (corpo.alvos_brinde.length === 0) throw new Error("Escolha qual produto o cliente ganha.");
+    } else if (tipo === "upgrade") {
+      if (!f.para) throw new Error("Escolha o produto para o qual o cliente pode trocar.");
+      if (f.alvos.has(f.para)) throw new Error("O produto de destino não pode estar entre os que são trocados.");
+      const v = lerPreco(f.valor);
+      if (v === null) throw new Error("Digite quanto o cliente paga a mais, por exemplo 3.");
+      corpo.valor = v;
+      corpo.alvos_brinde = [f.para];
+    } else if (tipo === "brinde") {
+      const lista = f.opcoes.filter((o) => String(o.nome || "").trim());
+      if (lista.length === 0) throw new Error("Cadastre pelo menos uma opção de brinde.");
+      const nomes = lista.map((o) => o.nome.trim().toLowerCase());
+      if (nomes.some((n, i) => nomes.indexOf(n) !== i)) throw new Error("Tem opção de brinde repetida.");
+      corpo.brinde_item = String(f.brindeItem || "").trim() || "brinde";
+      corpo.brinde_titulo = String(f.brindeTitulo || "").trim() || ("Ganhe " + corpo.brinde_item + " grátis!");
+      const apagarDepois = [];
+      const saida = [];
+      for (const o of lista) {
+        let img = o.imagemAtual || "";
+        if (o.fotoNova) {
+          const url = await enviarFoto(o.fotoNova, nome + "-" + o.nome);
+          if (img) apagarDepois.push(img);
+          img = url; o.imagemAtual = url; o.fotoNova = null; o.fotoPreview = "";
+        } else if (o.fotoRemover && img) { apagarDepois.push(img); img = ""; o.imagemAtual = ""; o.fotoRemover = false; }
+        saida.push({ nome: o.nome.trim(), imagem: img || null });
+      }
+      corpo.brinde_opcoes = saida;
+      f._apagarDepois = apagarDepois;
+    } else if (tipo === "informativa") {
+      if (!corpo.descricao) throw new Error("Escreva o texto do aviso.");
+    }
+
+    const existente = f.id ? dados.promocoes.find((p) => p.id === f.id) : null;
+    if (!existente) {
+      const id = f.id || idUnico(slug(nome), new Set(dados.promocoes.map((p) => p.id)));
+      await inserir("promocoes", Object.assign({ id, ordem: proximaOrdem(dados.promocoes) }, corpo));
+      f.id = id;
+    } else {
+      await atualizar("promocoes", "id", f.id, corpo);
+    }
+    (f._apagarDepois || []).forEach((u) => apagarFotoAntiga(u));
+    return f.id;
+  }
+  async function excluirPromocao(id) {
+    const p = dados.promocoes.find((x) => x.id === id);
+    await apagar("promocoes", "?id=eq." + enc(id));
+    if (p && Array.isArray(p.brinde_opcoes)) p.brinde_opcoes.forEach((o) => apagarFotoAntiga(o.imagem));
   }
 
   /* ============================================================
@@ -639,13 +780,13 @@
   }
 
   function renderPromocoes() {
-    let html = '<p class="dica">Ligue ou desligue cada promoção. As mudanças aparecem no site em poucos segundos.</p>';
+    let html = '<div class="barra"><button type="button" class="btn" data-acao="nova-promocao">+ Nova promoção</button></div>' +
+      '<p class="dica">Ligue ou desligue cada promoção. Combos (pacote por preço e "leve X ganhe Y") travam os itens que usam, e entre os descontos em porcentagem só o maior vale: eles não somam.</p>';
     if (dados.promocoes.length === 0) html += '<p class="vazio">Nenhuma promoção cadastrada.</p>';
     dados.promocoes.forEach((p) => {
-      const temValor = p.valor !== null && p.valor !== undefined;
-      html += '<div class="linha"><div class="info"><strong>' + esc(p.nome) + "</strong><small>" + esc(p.descricao) + "</small>" +
-        (temValor ? '<div class="promo-valor">Valor: <input type="number" step="0.01" min="0" data-toggle="promo-valor" data-id="' + esc(p.id) + '" value="' + esc(p.valor) + '"></div>' : "") +
-        "</div>" + interruptor("promo-ativa", p.id, !!p.ativa) + "</div>";
+      html += '<div class="linha"><div class="info"><strong>' + esc(p.nome) + '<span class="badge">' + esc(TIPOS_PROMO[p.tipo] ? TIPOS_PROMO[p.tipo].split(" (")[0] : "promoção") + "</span></strong><small>" + esc(resumoPromocao(p)) + "</small></div>" +
+        '<div class="acoes">' + interruptor("promo-ativa", p.id, !!p.ativa) + setas("promocao", p.id) +
+        '<button type="button" class="btn-mini" data-acao="editar-promocao" data-id="' + esc(p.id) + '">Editar</button></div></div>';
     });
     el("conteudo").innerHTML = html;
   }
@@ -664,6 +805,7 @@
     if (form) {
       if (form.fotoPreview) URL.revokeObjectURL(form.fotoPreview);
       (form.sabores || []).forEach((s) => s.fotoPreview && URL.revokeObjectURL(s.fotoPreview));
+      (form.opcoes || []).forEach((o) => o.fotoPreview && URL.revokeObjectURL(o.fotoPreview));
     }
     form = null;
   }
@@ -785,6 +927,84 @@
     );
   }
 
+  /* ---- promoção ---- */
+  function listaProdutosMarcar(campo, selecionados) {
+    let h = '<div class="lista-marcar">';
+    dados.categorias.forEach((c) => {
+      const prods = dados.produtos.filter((p) => p.categoria_id === c.id);
+      if (!prods.length) return;
+      h += "<h4>" + esc(c.nome) + "</h4>";
+      prods.forEach((p) => {
+        h += '<label class="check"><input type="checkbox" data-campo="' + campo + '" data-id="' + esc(p.id) + '"' + (selecionados.has(p.id) ? " checked" : "") + "> " + esc(p.nome) + "</label>";
+      });
+    });
+    return h + "</div>";
+  }
+  function htmlEscopoPromocao(f) {
+    const rot = { todos: "Todos os produtos", categorias: "Categorias escolhidas", produtos: "Produtos escolhidos" };
+    let h = '<div class="campo">Onde vale';
+    Object.keys(rot).forEach((v) => {
+      h += '<label class="check"><input type="radio" name="escopoPromo" data-campo="promo-escopo" value="' + v + '"' + (f.escopo === v ? " checked" : "") + "> " + rot[v] + "</label>";
+    });
+    if (f.escopo === "categorias") {
+      h += '<div class="lista-marcar">' + dados.categorias.map((c) =>
+        '<label class="check"><input type="checkbox" data-campo="promo-alvo" data-id="' + esc(c.id) + '"' + (f.alvos.has(c.id) ? " checked" : "") + "> " + esc(c.nome) + "</label>").join("") + "</div>";
+    }
+    if (f.escopo === "produtos") h += listaProdutosMarcar("promo-alvo", f.alvos);
+    return h + "</div>";
+  }
+
+  function renderModalPromocao() {
+    const f = form;
+    const t = f.tipoPromo;
+    let corpo = "";
+    if (t === "percentual") {
+      corpo += '<label class="campo">Desconto (%)<input type="text" inputmode="decimal" data-campo="promo-valor" value="' + esc(f.valor) + '"></label>' + htmlEscopoPromocao(f);
+    } else if (t === "pacote_preco") {
+      corpo += '<div class="duas-colunas"><label class="campo">Quantas unidades formam o pacote<input type="text" inputmode="numeric" data-campo="promo-qtd" value="' + esc(f.quantidade) + '"></label>' +
+        '<label class="campo">Preço do pacote (R$)<input type="text" inputmode="decimal" data-campo="promo-valor" value="' + esc(f.valor) + '"></label></div>' + htmlEscopoPromocao(f);
+    } else if (t === "leve_ganhe") {
+      corpo += '<label class="campo">Quantas unidades o cliente compra<input type="text" inputmode="numeric" data-campo="promo-qtd" value="' + esc(f.quantidade) + '"></label>' + htmlEscopoPromocao(f) +
+        '<label class="campo">Quantas unidades o cliente ganha<input type="text" inputmode="numeric" data-campo="promo-brinde-qtd" value="' + esc(f.brindeQuantidade) + '"></label>' +
+        '<div class="campo">Quais produtos ele pode ganhar (o mais barato do carrinho é o grátis)' + listaProdutosMarcar("promo-alvo-brinde", f.alvosBrinde) + "</div>";
+    } else if (t === "upgrade") {
+      corpo += '<div class="campo">Produtos que podem ser trocados' + listaProdutosMarcar("promo-alvo", f.alvos) + "</div>" +
+        '<label class="campo">Trocar por<select data-campo="promo-para"><option value="">Escolha…</option>' +
+          dados.produtos.map((p) => '<option value="' + esc(p.id) + '"' + (p.id === f.para ? " selected" : "") + ">" + esc(p.nome) + "</option>").join("") + "</select></label>" +
+        '<label class="campo">O cliente paga a mais (R$)<input type="text" inputmode="decimal" data-campo="promo-valor" value="' + esc(f.valor) + '"></label>';
+    } else if (t === "brinde") {
+      corpo += htmlEscopoPromocao(f) +
+        '<p class="dica">O brinde aparece na janela dos produtos que o cliente monta (como o açaí).</p>' +
+        '<label class="campo">Título (aparece pro cliente)<input type="text" maxlength="80" data-campo="promo-brinde-titulo" placeholder="Ganhe uma bola de sorvete grátis!" value="' + esc(f.brindeTitulo) + '"></label>' +
+        '<label class="campo">Nome do brinde (aparece no pedido)<input type="text" maxlength="40" data-campo="promo-brinde-item" placeholder="bola de sorvete" value="' + esc(f.brindeItem) + '"></label><h3>Opções de brinde</h3>';
+      f.opcoes.forEach((o, i) => {
+        const src = o.fotoPreview || (!o.fotoRemover ? urlFoto(o.imagemAtual) : "");
+        corpo += '<div class="sabor-linha">' + mini(src) +
+          '<input type="text" maxlength="40" placeholder="Nome (ex.: Baunilha)" data-campo="brinde-nome" data-i="' + i + '" value="' + esc(o.nome) + '">' +
+          '<label class="btn-mini" title="Foto">📷<input type="file" accept="image/*" hidden data-campo="brinde-foto" data-i="' + i + '"></label>' +
+          (src ? '<button type="button" class="btn-mini" title="Remover foto" data-acao="remover-foto-brinde" data-i="' + i + '">✕</button>' : "") +
+          '<button type="button" class="btn-mini" data-acao="subir-brinde-opcao" data-i="' + i + '">▲</button>' +
+          '<button type="button" class="btn-mini" data-acao="descer-brinde-opcao" data-i="' + i + '">▼</button>' +
+          '<button type="button" class="btn-mini" title="Remover" data-acao="remover-brinde-opcao" data-i="' + i + '">🗑</button></div>';
+      });
+      corpo += '<button type="button" class="btn-sec" data-acao="add-brinde-opcao">+ Adicionar opção</button>';
+    }
+    abrirModal(
+      "<h2>" + (f.id ? "Editar promoção" : "Nova promoção") + '</h2><p class="erro" id="erroModal" hidden></p>' +
+      '<label class="campo">Nome<input type="text" maxlength="60" data-campo="promo-nome" value="' + esc(f.nome) + '"></label>' +
+      '<label class="campo">Tipo<select data-campo="promo-tipo">' +
+        Object.keys(TIPOS_PROMO).map((k) => '<option value="' + k + '"' + (k === t ? " selected" : "") + ">" + esc(TIPOS_PROMO[k]) + "</option>").join("") + "</select></label>" +
+      corpo +
+      '<label class="campo">Texto do cartão na página inicial ' + (t === "informativa" ? "" : "(opcional: se ficar vazio, o site escreve sozinho)") + '<textarea rows="2" maxlength="200" data-campo="promo-descricao">' + esc(f.descricao) + "</textarea></label>" +
+      '<div class="duas-colunas"><label class="campo">Vale a partir de (opcional)<input type="date" data-campo="promo-inicio" value="' + esc(f.inicio) + '"></label>' +
+      '<label class="campo">Vale até (opcional)<input type="date" data-campo="promo-fim" value="' + esc(f.fim) + '"></label></div>' +
+      '<label class="check"><input type="checkbox" data-campo="promo-ativa" ' + (f.ativa ? "checked" : "") + "> Promoção ligada (aparece e vale no site)</label>" +
+      '<div class="rodape-modal">' + (f.id ? '<button type="button" class="btn-perigo esq" data-acao="excluir-promocao">Excluir</button>' : "") +
+        '<button type="button" class="btn-sec" data-acao="cancelar-modal">Cancelar</button>' +
+        '<button type="button" class="btn" id="btnSalvarModal" data-acao="salvar-promocao">Salvar</button></div>'
+    );
+  }
+
   /* ---------------- ações ---------------- */
   async function comBotaoOcupado(fn) {
     const b = el("btnSalvarModal");
@@ -833,6 +1053,22 @@
     "editar-categoria": (id) => { const c = dados.categorias.find((x) => x.id === id); form = { tipo: "categoria", id, nome: c.nome, modelo: c.modelo }; renderModalCategoria(); },
     "subir-categoria": async (id) => { await moverOrdem("categorias", dados.categorias, id, -1); await carregarTudo(); renderAba(); },
     "descer-categoria": async (id) => { await moverOrdem("categorias", dados.categorias, id, 1); await carregarTudo(); renderAba(); },
+
+    "nova-promocao": () => { form = novoFormPromocao(null); renderModalPromocao(); },
+    "editar-promocao": (id) => { form = novoFormPromocao(dados.promocoes.find((p) => p.id === id)); renderModalPromocao(); },
+    "subir-promocao": async (id) => { await moverOrdem("promocoes", dados.promocoes, id, -1); await carregarTudo(); renderAba(); },
+    "descer-promocao": async (id) => { await moverOrdem("promocoes", dados.promocoes, id, 1); await carregarTudo(); renderAba(); },
+    "salvar-promocao": async () => { if (await comBotaoOcupado(() => salvarPromocaoCompleta(form))) await depoisDeSalvar("✅ Promoção salva."); },
+    "excluir-promocao": async () => {
+      if (!confirm("Excluir esta promoção? Se for só pra pausar, é melhor desligar.")) return;
+      const id = form.id;
+      if (await comBotaoOcupado(() => excluirPromocao(id))) await depoisDeSalvar("Promoção excluída.");
+    },
+    "add-brinde-opcao": () => { form.opcoes.push(novaOpcaoBrinde()); renderModalPromocao(); },
+    "remover-brinde-opcao": (id, a, i) => { form.opcoes.splice(i, 1); renderModalPromocao(); },
+    "subir-brinde-opcao": (id, a, i) => { trocar(form.opcoes, i, i - 1); renderModalPromocao(); },
+    "descer-brinde-opcao": (id, a, i) => { trocar(form.opcoes, i, i + 1); renderModalPromocao(); },
+    "remover-foto-brinde": (id, a, i) => { const o = form.opcoes[i]; if (o.fotoPreview) URL.revokeObjectURL(o.fotoPreview); o.fotoNova = null; o.fotoPreview = ""; o.fotoRemover = true; renderModalPromocao(); },
 
     "cancelar-modal": () => fecharModal(),
     "salvar-produto": async () => { if (await comBotaoOcupado(() => salvarProdutoCompleto(form))) await depoisDeSalvar("✅ Produto salvo."); },
@@ -896,6 +1132,19 @@
       case "grupo-maximo": form.maximo = t.value; break;
       case "item-nome": form.itens[i].nome = t.value; break;
       case "item-ativa": form.itens[i].ativa = t.checked; break;
+      case "promo-nome": form.nome = t.value; break;
+      case "promo-valor": form.valor = t.value; break;
+      case "promo-qtd": form.quantidade = t.value; break;
+      case "promo-brinde-qtd": form.brindeQuantidade = t.value; break;
+      case "promo-descricao": form.descricao = t.value; break;
+      case "promo-inicio": form.inicio = t.value; break;
+      case "promo-fim": form.fim = t.value; break;
+      case "promo-ativa": form.ativa = t.checked; break;
+      case "promo-brinde-titulo": form.brindeTitulo = t.value; break;
+      case "promo-brinde-item": form.brindeItem = t.value; break;
+      case "brinde-nome": form.opcoes[i].nome = t.value; break;
+      case "promo-alvo": if (t.checked) form.alvos.add(t.dataset.id); else form.alvos.delete(t.dataset.id); break;
+      case "promo-alvo-brinde": if (t.checked) form.alvosBrinde.add(t.dataset.id); else form.alvosBrinde.delete(t.dataset.id); break;
       default: break;
     }
   });
@@ -905,7 +1154,11 @@
     try {
       if (tog === "produto-ativo") { await alternarAtivo("produtos", "ativo", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo."); }
       else if (tog === "categoria-ativa") { await alternarAtivo("categorias", "ativa", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo."); }
-      else if (tog === "promo-ativa" || tog === "promo-valor") { await salvarPromocao(t.dataset.id); await carregarTudo(); avisar("✅ Salvo! Já está valendo no site."); }
+      else if (tog === "promo-ativa") { await alternarAtivo("promocoes", "ativa", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo! Já está valendo no site."); }
+      else if (c === "promo-tipo" && form) { form.tipoPromo = t.value; if (t.value === "upgrade") form.escopo = "produtos"; renderModalPromocao(); }
+      else if (c === "promo-escopo" && form) { form.escopo = t.value; form.alvos = new Set(); renderModalPromocao(); }
+      else if (c === "promo-para" && form) { form.para = t.value; }
+      else if (c === "brinde-foto" && form) { await escolherFoto(form.opcoes[Number(t.dataset.i)], t.files && t.files[0]); renderModalPromocao(); }
       else if (c === "prod-categoria" && form) { form.categoria_id = t.value; renderModalProduto(); }
       else if (c === "cat-modelo" && form) { form.modelo = t.value; }
       else if (c === "prod-foto" && form) { await escolherFoto(form, t.files && t.files[0]); }
