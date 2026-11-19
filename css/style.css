@@ -26,6 +26,8 @@
 }
 
 *{ box-sizing: border-box; }
+/* o atributo "hidden" precisa esconder de verdade, mesmo em elementos com display:flex/grid */
+[hidden]{ display: none !important; }
 html{ scroll-behavior: smooth; }
 body{
   margin:0;
