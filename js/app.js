@@ -15,6 +15,7 @@
     cart: [],
     categoriaAtiva: "Todos",
     promocoes: null,
+    cupom: null,           // cupom aplicado no checkout
     modal: {
       produto: null,
       complementosSelecionados: new Set(), // usado no tipo "montavel"
@@ -181,7 +182,7 @@
   }
 
   // Calcula todos os descontos do carrinho.
-  function calcularPromocoes(itens, promocoes, hoje) {
+  function calcularPromocoes(itens, promocoes, hoje, opcoes) {
     const unidades = expandirCarrinho(itens);
     const subtotal = arredonda(unidades.reduce((s, u) => s + u.preco, 0));
     const ativas = promocoes.filter((p) => promocaoVigente(p, hoje));
@@ -206,24 +207,85 @@
     const linhas = Object.values(aplicadas).map((a) => "🎉 " + a.nome + " (" + a.vezes + "x aplicado) — economia de " + moeda(a.economia));
     const resultado = Object.values(aplicadas);
 
-    // 2) desconto em porcentagem nos itens que sobraram: só o MAIOR vale
+    // 2) descontos que NÃO somam: vale o MAIOR entre as promoções em porcentagem e o cupom
     let melhorPct = null;
     ativas.filter((p) => p.tipo === "percentual" && p.valor > 0).forEach((p) => {
       const base = unidades.filter((u) => !u.travada && unidadeNoEscopo(u, p.escopo, p.alvos)).reduce((s, u) => s + u.preco, 0);
       const economia = arredonda((base * Math.min(p.valor, 100)) / 100);
       if (economia > 0 && (!melhorPct || economia > melhorPct.economia + 1e-9)) melhorPct = { id: p.id, nome: p.nome, tipo: "percentual", valor: p.valor, economia };
     });
-    if (melhorPct) {
-      desconto += melhorPct.economia;
-      linhas.push("🔥 " + melhorPct.nome + " (" + numero(melhorPct.valor) + "%) — economia de " + moeda(melhorPct.economia));
-      resultado.push({ id: melhorPct.id, nome: melhorPct.nome, tipo: "percentual", vezes: 1, economia: melhorPct.economia });
+
+    const opc = opcoes || {};
+    const cupom = opc.cupom || null;
+    const taxa = opc.taxaEntrega === null || opc.taxaEntrega === undefined ? null : Number(opc.taxaEntrega);
+    let infoCupom = null;
+    let descontoFrete = 0;
+
+    if (cupom) {
+      infoCupom = { codigo: cupom.codigo, efeito: cupom.efeito, status: "ok", economia: 0, motivo: "", usar: false };
+      const minimo = Number(cupom.pedido_minimo) || 0;
+      const recusa = (status, motivo) => { infoCupom.status = status; infoCupom.motivo = motivo; };
+      if (minimo > 0 && subtotal < minimo) {
+        recusa("minimo", "Este cupom vale para pedidos a partir de " + moeda(minimo) + ".");
+      } else if (cupom.efeito === "frete_gratis") {
+        if (opc.tipoEntrega === "retirada") recusa("sem_valor", "Este cupom é de frete grátis e não vale para retirada.");
+        else if (taxa === null) recusa("aguardando", "Escolha o bairro de entrega: o frete grátis entra quando a taxa for conhecida.");
+        else if (taxa <= 0) recusa("sem_valor", "A entrega para o seu bairro já é grátis.");
+        else infoCupom.economia = arredonda(taxa);
+      } else if (cupom.efeito === "percentual" || cupom.efeito === "valor_fixo") {
+        const livres = unidades.filter((u) => !u.travada && unidadeNoEscopo(u, cupom.escopo, cupom.alvos));
+        const base = livres.reduce((s, u) => s + u.preco, 0);
+        const v = Number(cupom.valor) || 0;
+        infoCupom.economia = cupom.efeito === "percentual" ? arredonda((base * Math.min(v, 100)) / 100) : arredonda(Math.min(v, base));
+        if (livres.length === 0) recusa("sem_itens", "Este cupom não vale para os itens do seu carrinho (ou eles já estão em um combo).");
+        else if (infoCupom.economia <= 0) recusa("sem_valor", "Este cupom não gera desconto neste pedido.");
+      } else if (cupom.efeito !== "brinde") {
+        recusa("sem_valor", "Este cupom não pode ser usado agora.");
+      }
+    }
+
+    const cupomDisputa = infoCupom && infoCupom.status === "ok" && cupom.efeito !== "brinde";
+    // o cupom só ganha se der MAIS desconto que a promoção (empate fica com a promoção)
+    const cupomVence = cupomDisputa && (!melhorPct || infoCupom.economia > melhorPct.economia + 1e-9);
+
+    if (cupomVence) {
+      if (cupom.efeito === "frete_gratis") {
+        descontoFrete = arredonda(Math.min(taxa, infoCupom.economia));
+        linhas.push("🚚 Cupom " + cupom.codigo + " — frete grátis (economia de " + moeda(descontoFrete) + ")");
+      } else {
+        desconto += infoCupom.economia;
+        linhas.push("🎟️ Cupom " + cupom.codigo + " — economia de " + moeda(infoCupom.economia));
+      }
+      resultado.push({ id: "cupom:" + cupom.codigo, nome: "Cupom " + cupom.codigo, tipo: "cupom", efeito: cupom.efeito, vezes: 1, economia: infoCupom.economia });
+      infoCupom.status = "aplicado";
+      infoCupom.usar = true;
+    } else {
+      if (cupomDisputa) {
+        infoCupom.status = "perdeu";
+        infoCupom.motivo = "Este cupom daria " + moeda(infoCupom.economia) + ", mas a promoção " + melhorPct.nome + " já dá " + moeda(melhorPct.economia) + ". Vale o maior desconto.";
+      }
+      if (melhorPct) {
+        desconto += melhorPct.economia;
+        linhas.push("🔥 " + melhorPct.nome + " (" + numero(melhorPct.valor) + "%) — economia de " + moeda(melhorPct.economia));
+        resultado.push({ id: melhorPct.id, nome: melhorPct.nome, tipo: "percentual", vezes: 1, economia: melhorPct.economia });
+      }
+    }
+
+    // cupom de brinde não disputa com ninguém: soma com o desconto que valer
+    if (infoCupom && infoCupom.status === "ok" && cupom.efeito === "brinde") {
+      infoCupom.status = "aplicado";
+      infoCupom.usar = true;
+      linhas.push("🎁 Cupom " + cupom.codigo + ": " + (cupom.brinde_texto || "brinde"));
+      resultado.push({ id: "cupom:" + cupom.codigo, nome: "Cupom " + cupom.codigo, tipo: "cupom", efeito: "brinde", vezes: 1, economia: 0 });
     }
 
     return {
       subtotal,
       desconto: arredonda(Math.min(Math.max(desconto, 0), subtotal)),
+      descontoFrete,
       linhas,
       aplicadas: resultado,
+      cupom: infoCupom,
       travadas: unidades.filter((u) => u.travada).length,
     };
   }
@@ -338,8 +400,12 @@
       quantidade: i.quantidade,
       upgradeId: i.upgradeId || null,
     }));
-    const r = calcularPromocoes(itens, state.promocoes || [], hojeISO());
-    return { valor: r.desconto, linhas: r.linhas };
+    const r = calcularPromocoes(itens, state.promocoes || [], hojeISO(), {
+      cupom: state.cupom,
+      taxaEntrega: calcularTaxaEntrega(),
+      tipoEntrega: state.entrega.tipo,
+    });
+    return { valor: r.desconto, linhas: r.linhas, frete: r.descontoFrete, cupom: r.cupom };
   }
 
   // Promoção de upgrade ativa para este produto (ex.: Açaí 300ml -> 500ml pagando a diferença).
@@ -1019,7 +1085,7 @@
     const subtotal = calcularSubtotal();
     $("#carrinhoSubtotal").textContent = formatBRL(subtotal);
 
-    const { valor: desconto } = calcularDescontoTotal(subtotal);
+    const { valor: desconto, frete } = calcularDescontoTotal();
     const linhaDesconto = $("#linhaDescontoCarrinho");
     if (linhaDesconto) {
       if (desconto > 0) {
@@ -1031,9 +1097,9 @@
     }
 
     const taxa = calcularTaxaEntrega();
-    $("#carrinhoTaxa").textContent = taxa === null ? "Definida no checkout" : formatBRL(taxa);
+    $("#carrinhoTaxa").textContent = taxa === null ? "Definida no checkout" : frete > 0 ? formatBRL(taxa - frete) + " (cupom)" : formatBRL(taxa);
 
-    const total = subtotal - desconto + (taxa || 0);
+    const total = Math.max(subtotal - desconto + (taxa || 0) - frete, 0);
     $("#carrinhoTotal").textContent = formatBRL(total);
   }
 
@@ -1114,9 +1180,9 @@
       .join("");
 
     const subtotal = calcularSubtotal();
-    const { valor: desconto, linhas: linhasPromo } = calcularDescontoTotal(subtotal);
+    const { valor: desconto, linhas: linhasPromo, frete, cupom } = calcularDescontoTotal();
     const taxa = state.entrega.tipo === "retirada" ? 0 : (state.entrega.bairro ? state.entrega.bairro.taxa : 0);
-    const total = subtotal - desconto + taxa;
+    const total = Math.max(subtotal - desconto + taxa - frete, 0);
 
     $("#resumoSubtotal").textContent = formatBRL(subtotal);
     const linhaDescontoResumo = $("#linhaDescontoResumo");
@@ -1134,15 +1200,110 @@
       linhasPromoEl.innerHTML = linhasPromo.map((l) => `<div class="linha-promo-aplicada">${esc(l)}</div>`).join("");
     }
 
-    $("#resumoTaxa").textContent = state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa);
+    $("#resumoTaxa").textContent = state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : frete > 0 ? formatBRL(taxa - frete) + " (cupom)" : formatBRL(taxa);
     $("#resumoTotal").textContent = formatBRL(total);
+    atualizarMensagemCupom(cupom);
   }
 
   /* ---------------------------------------------------------
    * VALIDAÇÃO + ENVIO PARA O WHATSAPP
    * --------------------------------------------------------- */
+  /* ---------------------------------------------------------
+   * CUPOM (consultado e "gasto" no banco por funções do Supabase)
+   * --------------------------------------------------------- */
+  async function chamarRpc(nome, corpo) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${nome}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function mostrarMensagemCupom(texto, tipo) {
+    const el = $("#msgCupom");
+    if (!el) return;
+    el.hidden = !texto;
+    el.textContent = texto || "";
+    el.className = "msg-cupom " + (tipo || "aviso");
+  }
+
+  function limparCampoCupom() {
+    const campo = $("#campoCupom");
+    if (campo) campo.value = "";
+    mostrarMensagemCupom("", "aviso");
+    const remover = $("#btnRemoverCupom");
+    if (remover) remover.hidden = true;
+  }
+
+  // Mostra no checkout o que está acontecendo com o cupom (aplicado, perdeu pra promoção, pedido mínimo...)
+  function atualizarMensagemCupom(info) {
+    const remover = $("#btnRemoverCupom");
+    if (!state.cupom) {
+      if (remover) remover.hidden = true;
+      return;
+    }
+    if (remover) remover.hidden = false;
+    if (!info) return;
+    if (info.status === "aplicado") {
+      const c = state.cupom;
+      const texto = info.efeito === "brinde" ? "Cupom " + info.codigo + " aplicado: " + (c.brinde_texto || "brinde")
+        : info.efeito === "frete_gratis" ? "Cupom " + info.codigo + " aplicado: frete grátis!"
+        : "Cupom " + info.codigo + " aplicado: você economiza " + formatBRL(info.economia) + ".";
+      mostrarMensagemCupom(texto, "ok");
+    } else {
+      mostrarMensagemCupom(info.motivo, "aviso");
+    }
+  }
+
+  async function aplicarCupom() {
+    const campo = $("#campoCupom");
+    const botao = $("#btnAplicarCupom");
+    const codigo = campo.value.trim();
+    if (!codigo) {
+      mostrarMensagemCupom("Digite o código do cupom.", "erro");
+      return;
+    }
+    botao.disabled = true;
+    botao.textContent = "Verificando…";
+    const r = await chamarRpc("consultar_cupom", { p_codigo: codigo, p_telefone: $("#campoTelefone").value });
+    botao.disabled = false;
+    botao.textContent = "Aplicar";
+
+    state.cupom = r && r.valido ? r.cupom : null;
+    renderResumoCheckout();
+    atualizarValoresCarrinho();
+    if (!r) mostrarMensagemCupom("Não consegui verificar o cupom agora. Confira a internet e tente de novo.", "erro");
+    else if (!r.valido) mostrarMensagemCupom(r.motivo || "Cupom inválido.", "erro");
+  }
+
+  function removerCupom() {
+    state.cupom = null;
+    limparCampoCupom();
+    renderResumoCheckout();
+    atualizarValoresCarrinho();
+  }
+
+  function initCupom() {
+    const botao = $("#btnAplicarCupom");
+    if (!botao) return; // página sem o campo de cupom
+    botao.addEventListener("click", aplicarCupom);
+    $("#btnRemoverCupom").addEventListener("click", removerCupom);
+    $("#campoCupom").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault(); // Enter no cupom aplica o cupom (e não finaliza o pedido)
+        aplicarCupom();
+      }
+    });
+  }
+
   function initCheckoutSubmit() {
-    $("#checkoutForm").addEventListener("submit", (e) => {
+    $("#checkoutForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const nome = $("#campoNome").value.trim();
@@ -1197,15 +1358,40 @@
       }
 
       const troco = state.pagamento === "dinheiro" ? $("#campoTroco").value.trim() : "";
+
+      // Cupom: só é "gasto" se de fato valeu no pedido (se a promoção deu mais desconto, ele não é usado)
+      const calc = calcularDescontoTotal();
+      if (state.cupom && calc.cupom && calc.cupom.usar) {
+        const botao = $("#btnFinalizarWhats");
+        const aba = window.open("about:blank", "_blank"); // aberta já, antes da espera, pra não ser bloqueada
+        botao.disabled = true;
+        const r = await chamarRpc("usar_cupom", { p_codigo: state.cupom.codigo, p_telefone: telefone });
+        botao.disabled = false;
+        if (!r || !r.valido) {
+          if (aba) { try { aba.close(); } catch (x) { /* tudo bem */ } }
+          if (!r) {
+            toast("Não consegui validar o cupom agora. Tente de novo ou remova o cupom.");
+          } else {
+            state.cupom = null;
+            renderResumoCheckout();
+            atualizarValoresCarrinho();
+            mostrarMensagemCupom(r.motivo || "Esse cupom não pode ser usado.", "erro");
+            toast(r.motivo || "Esse cupom não pode ser usado.");
+          }
+          return;
+        }
+        enviarPedidoWhatsApp({ nome, telefone, endereco, troco }, aba);
+        return;
+      }
       enviarPedidoWhatsApp({ nome, telefone, endereco, troco });
     });
   }
 
-  function enviarPedidoWhatsApp({ nome, telefone, endereco, troco }) {
+  function enviarPedidoWhatsApp({ nome, telefone, endereco, troco }, aba) {
     const subtotal = calcularSubtotal();
-    const { valor: desconto, linhas: linhasPromo } = calcularDescontoTotal(subtotal);
+    const { valor: desconto, linhas: linhasPromo, frete, cupom } = calcularDescontoTotal();
     const taxa = state.entrega.tipo === "retirada" ? 0 : endereco.taxa || 0;
-    const total = subtotal - desconto + taxa;
+    const total = Math.max(subtotal - desconto + taxa - frete, 0);
     const formaPagamento = CONFIG.FORMAS_PAGAMENTO.find((f) => f.id === state.pagamento);
 
     let msg = `Olá! Gostaria de fazer um pedido na ${CONFIG.BRAND.nome} 🍇\n\n`;
@@ -1231,7 +1417,10 @@
     if (desconto > 0) {
       msg += `*Desconto total:* - ${formatBRL(desconto)}\n`;
     }
-    msg += `*Taxa de entrega:* ${state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : formatBRL(taxa)}\n`;
+    if (cupom && cupom.usar) {
+      msg += `*Cupom usado:* ${cupom.codigo}\n`;
+    }
+    msg += `*Taxa de entrega:* ${state.entrega.tipo === "retirada" ? "Retirada (sem taxa)" : frete > 0 ? formatBRL(taxa - frete) + " (cupom " + cupom.codigo + ")" : formatBRL(taxa)}\n`;
     msg += `*Total:* ${formatBRL(total)}\n\n`;
     msg += `*Forma de pagamento:* ${formaPagamento ? formaPagamento.nome : "-"}\n`;
     if (troco) msg += `*Troco para:* ${troco}\n`;
@@ -1248,9 +1437,16 @@
     }
 
     const link = buildWhatsAppLink(msg);
-    window.open(link, "_blank");
+    if (aba && !aba.closed) {
+      // a janela foi aberta antes da conferência do cupom (assim o navegador não bloqueia)
+      try { aba.location.href = link; } catch (e) { window.open(link, "_blank"); }
+    } else {
+      window.open(link, "_blank");
+    }
 
     state.cart = [];
+    state.cupom = null;
+    limparCampoCupom();
     renderCart();
     fecharCheckout();
     toast("Pedido enviado para o WhatsApp! ✅");
@@ -1296,6 +1492,7 @@
     initTipoEntrega();
     initBairroSelect();
     initCheckoutSubmit();
+    initCupom();
     initUiEvents();
     renderCart();
     initPromocoes();
