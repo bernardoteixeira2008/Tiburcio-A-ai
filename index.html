@@ -282,6 +282,16 @@
         <input type="text" id="campoTroco" inputmode="decimal" placeholder="Ex: R$ 50,00" />
       </label>
 
+      <div class="bloco-cupom" id="blocoCupom">
+        <label class="campo" for="campoCupom"><span>Tem um cupom?</span></label>
+        <div class="linha-cupom">
+          <input type="text" id="campoCupom" maxlength="24" placeholder="Digite o código" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          <button type="button" class="btn btn-ghost" id="btnAplicarCupom">Aplicar</button>
+        </div>
+        <p class="msg-cupom" id="msgCupom" hidden></p>
+        <button type="button" class="link-remover-cupom" id="btnRemoverCupom" hidden>Remover cupom</button>
+      </div>
+
       <div class="resumo-pedido">
         <h4>Resumo do pedido</h4>
         <div id="resumoItens"></div>
