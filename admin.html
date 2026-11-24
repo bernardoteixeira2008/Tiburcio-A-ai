@@ -133,6 +133,7 @@
     <button type="button" data-aba="complementos">Complementos</button>
     <button type="button" data-aba="categorias">Categorias</button>
     <button type="button" data-aba="promocoes">Promoções</button>
+    <button type="button" data-aba="cupons">Cupons</button>
   </nav>
   <div class="aviso" id="aviso" aria-live="polite"></div>
   <div class="pagina"><div class="painel" id="conteudo"></div></div>
@@ -152,7 +153,7 @@
   const CHAVE_SESSAO = "tiburcioPainelSessao";
   const PREFIXO_FOTOS = SUPABASE_URL + "/storage/v1/object/public/" + BUCKET + "/";
 
-  let dados = { categorias: [], produtos: [], grupos: [], opcoes: [], vinculos: [], promocoes: [] };
+  let dados = { categorias: [], produtos: [], grupos: [], opcoes: [], vinculos: [], promocoes: [], cupons: [], cuponsOk: false, usos: [] };
   let abaAtual = "produtos";
   let form = null; // formulário aberto na janela
 
@@ -275,9 +276,11 @@
   }
 
   async function carregarTudo() {
-    const [categorias, produtos, grupos, opcoes, vinculos, promocoes] = await Promise.all([
+    const opcional = async (tabela) => { try { return { ok: true, linhas: await lerTabela(tabela) }; } catch (e) { return { ok: false, linhas: [] }; } };
+    const [categorias, produtos, grupos, opcoes, vinculos, promocoes, cupons, usos] = await Promise.all([
       lerTabela("categorias"), lerTabela("produtos"), lerTabela("grupos"),
       lerTabela("opcoes"), lerTabela("produto_grupos"), lerTabela("promocoes"),
+      opcional("cupons"), opcional("cupons_usos"),
     ]);
     dados = {
       categorias: categorias.sort(porOrdem),
@@ -286,6 +289,9 @@
       opcoes: opcoes.sort(porOrdem),
       vinculos,
       promocoes: promocoes.sort(porOrdem),
+      cuponsOk: cupons.ok,
+      cupons: cupons.linhas.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo))),
+      usos: usos.linhas.sort((a, b) => String(b.usado_em).localeCompare(String(a.usado_em))),
     };
   }
 
@@ -699,6 +705,114 @@
     if (p && Array.isArray(p.brinde_opcoes)) p.brinde_opcoes.forEach((o) => apagarFotoAntiga(o.imagem));
   }
 
+  /* ---------------- gravação: cupons ---------------- */
+  const EFEITOS_CUPOM = {
+    percentual: "Desconto em porcentagem",
+    valor_fixo: "Desconto em reais (valor fixo)",
+    frete_gratis: "Frete grátis",
+    brinde: "Brinde",
+  };
+  const usosValidos = (c) => dados.usos.filter((u) => u.cupom_id === c.id && !u.devolvido).length;
+  const dataHoraBR = (iso) => {
+    const d = new Date(iso);
+    if (isNaN(d)) return String(iso || "");
+    const z = (n) => String(n).padStart(2, "0");
+    return z(d.getDate()) + "/" + z(d.getMonth() + 1) + " " + z(d.getHours()) + ":" + z(d.getMinutes());
+  };
+  function ondeVale(escopo, alvos) {
+    if (escopo === "todos") return "todos os produtos";
+    const nomes = escopo === "categorias" ? alvos.map(nomeCategoria) : alvos.map(nomeProduto);
+    return juntar(nomes) || "(nada escolhido)";
+  }
+  function resumoCupom(c) {
+    const alvos = Array.isArray(c.alvos) ? c.alvos : [];
+    let t;
+    if (c.efeito === "percentual") t = c.valor + "% de desconto em " + ondeVale(c.escopo, alvos);
+    else if (c.efeito === "valor_fixo") t = brl(c.valor) + " de desconto em " + ondeVale(c.escopo, alvos);
+    else if (c.efeito === "frete_gratis") t = "Frete grátis";
+    else t = "Brinde: " + (c.brinde_texto || "");
+    if (c.pedido_minimo) t += " · pedido a partir de " + brl(c.pedido_minimo);
+    if (c.inicio || c.fim) t += " · " + (c.inicio ? "de " + dataBR(c.inicio) : "") + (c.fim ? " até " + dataBR(c.fim) : "");
+    if (c.um_por_telefone) t += " · 1 por telefone";
+    return t;
+  }
+
+  function novoFormCupom(c) {
+    return {
+      tipo: "cupom",
+      id: c ? c.id : null,
+      codigo: c ? c.codigo : "",
+      nome: c ? (c.nome || "") : "",
+      efeito: c ? c.efeito : "percentual",
+      valor: c && c.valor !== null && c.valor !== undefined ? String(c.valor).replace(".", ",") : "",
+      brindeTexto: c ? (c.brinde_texto || "") : "",
+      escopo: c ? (c.escopo || "todos") : "todos",
+      alvos: new Set(c && Array.isArray(c.alvos) ? c.alvos : []),
+      minimo: c && c.pedido_minimo ? String(c.pedido_minimo).replace(".", ",") : "",
+      inicio: c ? (c.inicio || "") : "",
+      fim: c ? (c.fim || "") : "",
+      limitado: !!(c && c.limite_total),
+      limite: c && c.limite_total ? String(c.limite_total) : "",
+      umPorTelefone: c ? !!c.um_por_telefone : true,
+      ativa: c ? c.ativo !== false : true,
+    };
+  }
+
+  async function salvarCupomCompleto(f) {
+    const codigo = String(f.codigo || "").trim().toUpperCase().replace(/\s+/g, "");
+    if (!/^[A-Z0-9_-]{3,24}$/.test(codigo)) throw new Error("O código precisa ter de 3 a 24 letras ou números (pode usar - e _), sem espaços nem acentos.");
+    if (!EFEITOS_CUPOM[f.efeito]) throw new Error("Escolha o tipo do cupom.");
+    if (f.inicio && f.fim && f.inicio > f.fim) throw new Error("A data final não pode ser antes da data inicial.");
+
+    const corpo = {
+      codigo, nome: String(f.nome || "").trim() || null, efeito: f.efeito,
+      valor: null, brinde_texto: null, escopo: "todos", alvos: [],
+      pedido_minimo: null, inicio: f.inicio || null, fim: f.fim || null,
+      limite_total: null, um_por_telefone: !!f.umPorTelefone, ativo: !!f.ativa,
+    };
+    if (f.efeito === "percentual" || f.efeito === "valor_fixo") {
+      corpo.escopo = f.escopo;
+      corpo.alvos = f.escopo === "todos" ? [] : [...f.alvos];
+      if (f.escopo !== "todos" && corpo.alvos.length === 0) throw new Error("Escolha onde o cupom vale (marque pelo menos um item).");
+      if (f.efeito === "percentual") {
+        const v = Number(String(f.valor).replace(",", "."));
+        if (!Number.isFinite(v) || v <= 0 || v > 100) throw new Error("O desconto em porcentagem vai de 1 a 100.");
+        corpo.valor = v;
+      } else {
+        const v = lerPreco(f.valor);
+        if (v === null || v <= 0) throw new Error("Digite o valor do desconto em reais, por exemplo 10.");
+        corpo.valor = v;
+      }
+    } else if (f.efeito === "brinde") {
+      corpo.brinde_texto = String(f.brindeTexto || "").trim();
+      if (!corpo.brinde_texto) throw new Error("Escreva qual é o brinde (ex.: uma bola de sorvete).");
+    }
+    const minTxt = String(f.minimo || "").trim();
+    if (minTxt !== "") {
+      const v = lerPreco(minTxt);
+      if (v === null) throw new Error("Digite o pedido mínimo em reais, por exemplo 50 (ou deixe vazio).");
+      corpo.pedido_minimo = v > 0 ? v : null;
+    }
+    if (f.limitado) corpo.limite_total = lerInteiro(f.limite, 1, 100000, "Digite quantas vezes o cupom pode ser usado (um número a partir de 1).");
+
+    try {
+      const existente = f.id ? dados.cupons.find((c) => c.id === f.id) : null;
+      if (!existente) {
+        const id = f.id || idUnico(slug(codigo), new Set(dados.cupons.map((c) => c.id)));
+        await inserir("cupons", Object.assign({ id }, corpo));
+        f.id = id;
+      } else {
+        await atualizar("cupons", "id", f.id, corpo);
+      }
+    } catch (err) {
+      if (/duplicate key|cupons_codigo_key/i.test(err.message || "")) throw new Error("Já existe um cupom com o código " + codigo + ".");
+      throw err;
+    }
+    return f.id;
+  }
+  async function excluirCupom(id) { await apagar("cupons", "?id=eq." + enc(id)); }
+  async function devolverUso(idUso, devolvido) { await atualizar("cupons_usos", "id", idUso, { devolvido: !!devolvido }); }
+
   /* ============================================================
      TELAS
      ============================================================ */
@@ -722,7 +836,7 @@
 
   function renderAba() {
     document.querySelectorAll("#abas [data-aba]").forEach((b) => b.classList.toggle("ativa", b.dataset.aba === abaAtual));
-    const mapa = { produtos: renderProdutos, complementos: renderComplementos, categorias: renderCategorias, promocoes: renderPromocoes };
+    const mapa = { produtos: renderProdutos, complementos: renderComplementos, categorias: renderCategorias, promocoes: renderPromocoes, cupons: renderCupons };
     (mapa[abaAtual] || renderProdutos)();
   }
 
@@ -787,6 +901,25 @@
       html += '<div class="linha"><div class="info"><strong>' + esc(p.nome) + '<span class="badge">' + esc(TIPOS_PROMO[p.tipo] ? TIPOS_PROMO[p.tipo].split(" (")[0] : "promoção") + "</span></strong><small>" + esc(resumoPromocao(p)) + "</small></div>" +
         '<div class="acoes">' + interruptor("promo-ativa", p.id, !!p.ativa) + setas("promocao", p.id) +
         '<button type="button" class="btn-mini" data-acao="editar-promocao" data-id="' + esc(p.id) + '">Editar</button></div></div>';
+    });
+    el("conteudo").innerHTML = html;
+  }
+
+  function renderCupons() {
+    if (!dados.cuponsOk) {
+      el("conteudo").innerHTML = '<p class="vazio">Os cupons ainda não foram ativados. Rode o SQL da etapa 3b no Supabase e recarregue esta página.</p>';
+      return;
+    }
+    let html = '<div class="barra"><button type="button" class="btn" data-acao="novo-cupom">+ Novo cupom</button></div>' +
+      '<p class="dica">O cliente digita o código na hora de finalizar o pedido. O cupom só vale se der mais desconto que a promoção do momento (os descontos não somam) e nunca em itens que já estão num combo.</p>';
+    if (dados.cupons.length === 0) html += '<p class="vazio">Nenhum cupom ainda.</p>';
+    dados.cupons.forEach((c) => {
+      const n = usosValidos(c);
+      html += '<div class="linha"><div class="info"><strong>' + esc(c.codigo) + '<span class="badge">' + esc(EFEITOS_CUPOM[c.efeito] ? EFEITOS_CUPOM[c.efeito].split(" (")[0] : c.efeito) + "</span></strong>" +
+        "<small>" + esc(resumoCupom(c)) + "</small>" +
+        "<small>" + n + (c.limite_total ? " de " + c.limite_total + " usos" : n === 1 ? " uso" : " usos") + (c.nome ? " · " + esc(c.nome) : "") + "</small></div>" +
+        '<div class="acoes">' + interruptor("cupom-ativo", c.id, c.ativo !== false) +
+        '<button type="button" class="btn-mini" data-acao="editar-cupom" data-id="' + esc(c.id) + '">Editar</button></div></div>';
     });
     el("conteudo").innerHTML = html;
   }
@@ -1005,6 +1138,56 @@
     );
   }
 
+  /* ---- cupom ---- */
+  function renderModalCupom() {
+    const f = form;
+    const e = f.efeito;
+    let corpo = "";
+    if (e === "percentual") corpo += '<label class="campo">Desconto (%)<input type="text" inputmode="decimal" data-campo="promo-valor" value="' + esc(f.valor) + '"></label>';
+    if (e === "valor_fixo") corpo += '<label class="campo">Desconto (R$)<input type="text" inputmode="decimal" data-campo="promo-valor" value="' + esc(f.valor) + '"></label>';
+    if (e === "percentual" || e === "valor_fixo") corpo += htmlEscopoPromocao(f);
+    if (e === "brinde") corpo += '<label class="campo">Qual é o brinde<input type="text" maxlength="80" placeholder="uma bola de sorvete" data-campo="cupom-brinde" value="' + esc(f.brindeTexto) + '"></label>';
+    if (e === "frete_gratis") corpo += '<p class="dica">O cupom abate a taxa de entrega do cliente. Em bairros de entrega grátis ou na retirada ele não é usado.</p>';
+
+    let usos = "";
+    if (f.id) {
+      const lista = dados.usos.filter((u) => u.cupom_id === f.id);
+      const validos = lista.filter((u) => !u.devolvido).length;
+      usos = "<h3>Usos (" + validos + " valendo" + (lista.length !== validos ? ", " + (lista.length - validos) + " devolvido(s)" : "") + ")</h3>" +
+        '<p class="dica">Se um pedido não foi adiante, devolva o uso para o cliente poder usar o cupom de novo.</p>';
+      if (lista.length === 0) usos += '<p class="vazio">Ninguém usou ainda.</p>';
+      lista.slice(0, 30).forEach((u) => {
+        usos += '<div class="sabor-linha"><span class="info"><strong style="font-size:13px">' + esc(dataHoraBR(u.usado_em)) + "</strong><small>cliente " + esc(String(u.telefone_hash || "sem telefone").slice(0, 6)) + (u.devolvido ? " · devolvido" : "") + "</small></span>" +
+          (u.devolvido
+            ? '<button type="button" class="btn-mini" data-acao="desfazer-devolucao" data-id="' + esc(u.id) + '">Desfazer devolução</button>'
+            : '<button type="button" class="btn-mini" data-acao="devolver-uso" data-id="' + esc(u.id) + '">Devolver uso</button>') + "</div>";
+      });
+      if (lista.length > 30) usos += '<p class="dica">Mostrando os 30 usos mais recentes.</p>';
+    }
+
+    abrirModal(
+      "<h2>" + (f.id ? "Editar cupom" : "Novo cupom") + '</h2><p class="erro" id="erroModal" hidden></p>' +
+      '<label class="campo">Código (o que o cliente digita)<input type="text" maxlength="24" autocomplete="off" spellcheck="false" style="text-transform:uppercase" data-campo="cupom-codigo" value="' + esc(f.codigo) + '"></label>' +
+      '<label class="campo">Anotação interna (opcional)<input type="text" maxlength="80" placeholder="ex.: divulgado no Instagram" data-campo="cupom-nome" value="' + esc(f.nome) + '"></label>' +
+      '<label class="campo">Tipo<select data-campo="cupom-efeito">' +
+        Object.keys(EFEITOS_CUPOM).map((k) => '<option value="' + k + '"' + (k === e ? " selected" : "") + ">" + esc(EFEITOS_CUPOM[k]) + "</option>").join("") + "</select></label>" +
+      corpo +
+      '<label class="campo">Pedido mínimo em R$ (opcional)<input type="text" inputmode="decimal" data-campo="cupom-min" value="' + esc(f.minimo) + '"></label>' +
+      '<div class="duas-colunas"><label class="campo">Vale a partir de (opcional)<input type="date" data-campo="promo-inicio" value="' + esc(f.inicio) + '"></label>' +
+      '<label class="campo">Vale até (opcional)<input type="date" data-campo="promo-fim" value="' + esc(f.fim) + '"></label></div>' +
+      '<div class="campo">Quantas vezes pode ser usado' +
+        '<label class="check"><input type="radio" name="limiteCupom" data-campo="cupom-limitado" value="nao"' + (!f.limitado ? " checked" : "") + "> Sem limite (você desliga quando quiser)</label>" +
+        '<label class="check"><input type="radio" name="limiteCupom" data-campo="cupom-limitado" value="sim"' + (f.limitado ? " checked" : "") + "> Limite total de usos" +
+        ' <input type="text" inputmode="numeric" style="width:90px;margin:0 0 0 6px;padding:6px 8px;border:1.5px solid rgba(44,10,51,.2);border-radius:8px" data-campo="cupom-limite" value="' + esc(f.limite) + '"></label></div>' +
+      '<label class="check"><input type="checkbox" data-campo="cupom-um-tel"' + (f.umPorTelefone ? " checked" : "") + "> Cada telefone só pode usar uma vez</label>" +
+      '<label class="check"><input type="checkbox" data-campo="promo-ativa"' + (f.ativa ? " checked" : "") + "> Cupom ligado</label>" +
+      usos +
+      '<div class="rodape-modal">' + (f.id ? '<button type="button" class="btn-perigo esq" data-acao="excluir-cupom">Excluir</button>' : "") +
+        '<button type="button" class="btn-sec" data-acao="cancelar-modal">Cancelar</button>' +
+        '<button type="button" class="btn" id="btnSalvarModal" data-acao="salvar-cupom">Salvar</button></div>'
+    );
+  }
+
   /* ---------------- ações ---------------- */
   async function comBotaoOcupado(fn) {
     const b = el("btnSalvarModal");
@@ -1069,6 +1252,17 @@
     "subir-brinde-opcao": (id, a, i) => { trocar(form.opcoes, i, i - 1); renderModalPromocao(); },
     "descer-brinde-opcao": (id, a, i) => { trocar(form.opcoes, i, i + 1); renderModalPromocao(); },
     "remover-foto-brinde": (id, a, i) => { const o = form.opcoes[i]; if (o.fotoPreview) URL.revokeObjectURL(o.fotoPreview); o.fotoNova = null; o.fotoPreview = ""; o.fotoRemover = true; renderModalPromocao(); },
+
+    "novo-cupom": () => { form = novoFormCupom(null); renderModalCupom(); },
+    "editar-cupom": (id) => { form = novoFormCupom(dados.cupons.find((c) => c.id === id)); renderModalCupom(); },
+    "salvar-cupom": async () => { if (await comBotaoOcupado(() => salvarCupomCompleto(form))) await depoisDeSalvar("✅ Cupom salvo."); },
+    "excluir-cupom": async () => {
+      if (!confirm("Excluir este cupom e o histórico de usos dele? Se for só pra pausar, é melhor desligar.")) return;
+      const id = form.id;
+      if (await comBotaoOcupado(() => excluirCupom(id))) await depoisDeSalvar("Cupom excluído.");
+    },
+    "devolver-uso": async (id) => { await devolverUso(id, true); await carregarTudo(); renderModalCupom(); renderAba(); avisar("✅ Uso devolvido."); },
+    "desfazer-devolucao": async (id) => { await devolverUso(id, false); await carregarTudo(); renderModalCupom(); renderAba(); avisar("✅ Devolução desfeita."); },
 
     "cancelar-modal": () => fecharModal(),
     "salvar-produto": async () => { if (await comBotaoOcupado(() => salvarProdutoCompleto(form))) await depoisDeSalvar("✅ Produto salvo."); },
@@ -1144,6 +1338,17 @@
       case "promo-brinde-item": form.brindeItem = t.value; break;
       case "brinde-nome": form.opcoes[i].nome = t.value; break;
       case "promo-alvo": if (t.checked) form.alvos.add(t.dataset.id); else form.alvos.delete(t.dataset.id); break;
+      case "cupom-codigo": form.codigo = t.value; break;
+      case "cupom-nome": form.nome = t.value; break;
+      case "cupom-brinde": form.brindeTexto = t.value; break;
+      case "cupom-min": form.minimo = t.value; break;
+      case "cupom-limite": {
+        form.limite = t.value; form.limitado = true;
+        const radio = document.querySelector('[data-campo="cupom-limitado"][value="sim"]');
+        if (radio) radio.checked = true;
+        break;
+      }
+      case "cupom-um-tel": form.umPorTelefone = t.checked; break;
       case "promo-alvo-brinde": if (t.checked) form.alvosBrinde.add(t.dataset.id); else form.alvosBrinde.delete(t.dataset.id); break;
       default: break;
     }
@@ -1156,7 +1361,10 @@
       else if (tog === "categoria-ativa") { await alternarAtivo("categorias", "ativa", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo."); }
       else if (tog === "promo-ativa") { await alternarAtivo("promocoes", "ativa", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo! Já está valendo no site."); }
       else if (c === "promo-tipo" && form) { form.tipoPromo = t.value; if (t.value === "upgrade") form.escopo = "produtos"; renderModalPromocao(); }
-      else if (c === "promo-escopo" && form) { form.escopo = t.value; form.alvos = new Set(); renderModalPromocao(); }
+      else if (c === "promo-escopo" && form) { form.escopo = t.value; form.alvos = new Set(); if (form.tipo === "cupom") renderModalCupom(); else renderModalPromocao(); }
+      else if (c === "cupom-efeito" && form) { form.efeito = t.value; renderModalCupom(); }
+      else if (c === "cupom-limitado" && form) { form.limitado = t.value === "sim"; }
+      else if (tog === "cupom-ativo") { await alternarAtivo("cupons", "ativo", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo."); }
       else if (c === "promo-para" && form) { form.para = t.value; }
       else if (c === "brinde-foto" && form) { await escolherFoto(form.opcoes[Number(t.dataset.i)], t.files && t.files[0]); renderModalPromocao(); }
       else if (c === "prod-categoria" && form) { form.categoria_id = t.value; renderModalProduto(); }
