@@ -313,6 +313,16 @@
 <!-- ===================== TOAST ===================== -->
 <div class="toast" id="toast"></div>
 
+<!-- Acompanhamento do pedido: o cliente vê o status que a loja marca no painel -->
+<button type="button" class="pill-acompanhar" id="pillAcompanhar" hidden>🧾 Acompanhar pedido</button>
+<div class="modal-overlay" id="acompanhamentoOverlay">
+  <div class="modal acomp-modal" role="dialog" aria-modal="true" aria-labelledby="acompTitulo">
+    <button class="modal-close" id="fecharAcompanhamento" aria-label="Fechar">&times;</button>
+    <h3 id="acompTitulo">Acompanhe seu pedido</h3>
+    <div class="acomp-corpo" id="acompCorpo"></div>
+  </div>
+</div>
+
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 
