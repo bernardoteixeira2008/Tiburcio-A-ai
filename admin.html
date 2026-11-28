@@ -97,6 +97,32 @@
   .lista-marcar h4{ margin:8px 0 2px; font-size:12px; color: var(--suave); }
   .duas-colunas{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .campo input[type="number"], .campo input[type="date"], .campo textarea{ display:block; width:100%; margin-top:5px; padding:10px 12px; border-radius:10px; border:1.5px solid rgba(44,10,51,.2); font-size:14.5px; font-family:inherit; background:#fff; }
+  .contador{ display:inline-block; min-width:20px; padding:1px 6px; margin-left:6px; border-radius:999px; background:#d93a2b; color:#fff; font-size:11.5px; font-weight:800; text-align:center; }
+  .barra-pedidos{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .resumo-dia{ font-size:13px; color: var(--suave); }
+  .sec-pedidos{ margin:20px 0 8px; font-size:15px; color: var(--roxo-escuro); }
+  .sec-pedidos:first-of-type{ margin-top:6px; }
+  .pedido{ border:1.5px solid var(--linha); border-left:6px solid #cfc6d1; border-radius:14px; padding:12px 14px; margin-bottom:12px; background:#fff; }
+  .pedido-novo{ border-left-color:#d93a2b; background:#fff8f7; }
+  .pedido-aceito{ border-left-color:#e0a21b; }
+  .pedido-saiu{ border-left-color: var(--verde); }
+  .pedido-recusado{ border-left-color:#8c7f91; opacity:.8; }
+  .pedido-topo{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:6px; }
+  .pedido-topo .hora{ margin-left:auto; font-size:12.5px; color: var(--suave); }
+  .pedido .cliente{ font-size:14px; margin-bottom:2px; }
+  .pedido .cliente a{ color: var(--roxo-vivo); }
+  .pedido .endereco{ font-size:13px; color: var(--suave); margin-bottom:6px; }
+  .pedido ul{ list-style:none; padding:0; margin:6px 0; }
+  .pedido li{ font-size:14px; padding:3px 0; }
+  .pedido li small{ display:block; color: var(--suave); font-size:12px; }
+  .pedido .promos{ font-size:12.5px; color:#6d4b05; background:#fdf3d8; border-radius:8px; padding:6px 8px; margin:6px 0; }
+  .pedido .totais{ font-size:13.5px; margin:8px 0; }
+  .pedido .motivo{ font-size:13px; color:#9b2230; margin:6px 0; }
+  .acoes-pedido{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  .acoes-pedido .btn{ padding:10px 18px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 4px; }
+  .chip{ border:1.5px solid rgba(44,10,51,.25); background:#fff; border-radius:999px; padding:12px 18px; font-weight:700; font-size:15px; color: var(--texto); }
+  .chip:hover{ border-color: var(--roxo-vivo); color: var(--roxo-vivo); }
   small.nota{ display:block; font-size:12px; color: var(--suave); margin-top:4px; }
   .promo-valor{ display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color: var(--suave); }
   .promo-valor input{ width:80px; padding:6px 8px; border-radius:8px; border:1.5px solid rgba(44,10,51,.2); font-size:13px; }
@@ -129,7 +155,8 @@
     <div><span class="usuario" id="textoUsuario"></span><button class="link" id="btnSair" type="button">Sair</button></div>
   </header>
   <nav class="abas" id="abas">
-    <button type="button" data-aba="produtos" class="ativa">Produtos</button>
+    <button type="button" data-aba="pedidos" class="ativa">Pedidos<span class="contador" id="contadorPedidos" hidden></span></button>
+    <button type="button" data-aba="produtos">Produtos</button>
     <button type="button" data-aba="complementos">Complementos</button>
     <button type="button" data-aba="categorias">Categorias</button>
     <button type="button" data-aba="promocoes">Promoções</button>
@@ -153,8 +180,9 @@
   const CHAVE_SESSAO = "tiburcioPainelSessao";
   const PREFIXO_FOTOS = SUPABASE_URL + "/storage/v1/object/public/" + BUCKET + "/";
 
-  let dados = { categorias: [], produtos: [], grupos: [], opcoes: [], vinculos: [], promocoes: [], cupons: [], cuponsOk: false, usos: [] };
-  let abaAtual = "produtos";
+  let dados = { categorias: [], produtos: [], grupos: [], opcoes: [], vinculos: [], promocoes: [], cupons: [], cuponsOk: false, usos: [], pedidos: [], pedidosOk: true };
+  let abaAtual = "pedidos";
+  let papel = "dono"; // "dono" vê tudo; "cozinha" vê só os pedidos
   let form = null; // formulário aberto na janela
 
   /* ---------------- utilidades ---------------- */
@@ -232,7 +260,12 @@
     if (!s || !s.access_token) return null;
     if (Date.now() > s.expira_em - 60000) {
       try { s = await autenticar({ refresh_token: s.refresh_token }, "refresh_token"); }
-      catch (e) { limparSessao(); return null; }
+      catch (e) {
+        // Só desloga se o servidor RECUSOU a renovação. Falta de internet ou servidor fora do ar não deslogam ninguém.
+        if (e && (e.status === 400 || e.status === 401 || e.status === 403)) { limparSessao(); return null; }
+        if (Date.now() < s.expira_em) return s.access_token;
+        throw new Error("Sem conexão com a internet no momento.");
+      }
     }
     return s.access_token;
   }
@@ -282,7 +315,7 @@
       lerTabela("opcoes"), lerTabela("produto_grupos"), lerTabela("promocoes"),
       opcional("cupons"), opcional("cupons_usos"),
     ]);
-    dados = {
+    Object.assign(dados, { // (Object.assign: mantém os pedidos, que são carregados à parte)
       categorias: categorias.sort(porOrdem),
       produtos: produtos.sort(porOrdem),
       grupos: grupos.sort(porOrdem),
@@ -292,7 +325,7 @@
       cuponsOk: cupons.ok,
       cupons: cupons.linhas.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo))),
       usos: usos.linhas.sort((a, b) => String(b.usado_em).localeCompare(String(a.usado_em))),
-    };
+    });
   }
 
   /* ---------------- fotos ---------------- */
@@ -817,6 +850,13 @@
      TELAS
      ============================================================ */
   function mostrarLogin(mensagem) {
+    pararPollingPedidos();
+    if (wakeLock) { try { wakeLock.release(); } catch (e) { /* tudo bem */ } wakeLock = null; }
+    papel = "dono";
+    dados.pedidos = [];
+    idsPedidosConhecidos = new Set();
+    primeiraCargaPedidos = true;
+    document.title = TITULO_BASE;
     el("app").hidden = true;
     fecharModal();
     el("telaLogin").hidden = false;
@@ -830,13 +870,21 @@
     el("app").hidden = false;
     el("textoUsuario").textContent = s && s.email ? s.email : "";
     el("conteudo").innerHTML = '<p class="vazio">Carregando…</p>';
-    try { await carregarTudo(); renderAba(); }
-    catch (e) { if (!el("app").hidden) el("conteudo").innerHTML = '<p class="erro">Não consegui carregar os dados. Confira a internet e recarregue a página.</p>'; }
+    try {
+      await descobrirPapel();
+      aplicarPapel();
+      if (papel !== "cozinha") await carregarTudo();
+      try { await carregarPedidos(); } catch (e) { /* tenta de novo no próximo ciclo */ }
+      registrarPedidosVistos();
+      renderAba();
+      iniciarPollingPedidos();
+      if (localStorage.getItem("tiburcioTela") === "on") pedirTelaLigada().then(() => { if (abaAtual === "pedidos") renderPedidos(); });
+    } catch (e) { if (!el("app").hidden) el("conteudo").innerHTML = '<p class="erro">Não consegui carregar os dados. Confira a internet e recarregue a página.</p>'; }
   }
 
   function renderAba() {
     document.querySelectorAll("#abas [data-aba]").forEach((b) => b.classList.toggle("ativa", b.dataset.aba === abaAtual));
-    const mapa = { produtos: renderProdutos, complementos: renderComplementos, categorias: renderCategorias, promocoes: renderPromocoes, cupons: renderCupons };
+    const mapa = { produtos: renderProdutos, complementos: renderComplementos, categorias: renderCategorias, promocoes: renderPromocoes, cupons: renderCupons, pedidos: renderPedidos };
     (mapa[abaAtual] || renderProdutos)();
   }
 
@@ -922,6 +970,226 @@
         '<button type="button" class="btn-mini" data-acao="editar-cupom" data-id="' + esc(c.id) + '">Editar</button></div></div>';
     });
     el("conteudo").innerHTML = html;
+  }
+
+  /* ---------------- pedidos ---------------- */
+  const TITULO_BASE = "Tiburcio Açaí — Painel";
+  const INTERVALO_PEDIDOS = window.__INTERVALO_PEDIDOS || 10000; // (só os testes mudam isso)
+  const TRES_HORAS = 3 * 60 * 60 * 1000;
+  let timerPedidos = null;
+  let idsPedidosConhecidos = new Set();
+  let primeiraCargaPedidos = true;
+  let ultimaAssinatura = "";
+  let ultimoRender = 0;
+  let alertasTocados = 0;
+  let audioCtx = null;
+  const somLigado = () => localStorage.getItem("tiburcioSom") !== "off";
+
+  async function descobrirPapel() {
+    papel = "dono";
+    try {
+      const s = lerSessao();
+      const d = await rest("GET", "papeis", "?select=papel&email=eq." + enc((s && s.email) || ""));
+      if (Array.isArray(d) && d[0] && d[0].papel === "cozinha") papel = "cozinha";
+    } catch (e) { /* sem a tabela de papéis (antes do SQL da etapa 4): todos são "dono" */ }
+  }
+  function aplicarPapel() {
+    document.querySelectorAll("#abas [data-aba]").forEach((b) => { b.hidden = papel === "cozinha" && b.dataset.aba !== "pedidos"; });
+    if (papel === "cozinha") abaAtual = "pedidos";
+  }
+
+  async function carregarPedidos() {
+    const desde = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    try {
+      const linhas = await rest("GET", "pedidos", "?select=*&criado_em=gte." + enc(desde) + "&order=criado_em.asc&limit=300");
+      dados.pedidosOk = true;
+      dados.pedidos = Array.isArray(linhas) ? linhas : [];
+    } catch (e) {
+      if (e.status === 404) { dados.pedidosOk = false; dados.pedidos = []; return; }
+      throw e;
+    }
+  }
+  function registrarPedidosVistos() {
+    idsPedidosConhecidos = new Set(dados.pedidos.map((p) => p.id));
+    primeiraCargaPedidos = false;
+    atualizarContadorPedidos();
+  }
+  function atualizarContadorPedidos() {
+    const n = dados.pedidos.filter((p) => p.status === "novo").length;
+    const c = el("contadorPedidos");
+    c.hidden = n === 0;
+    c.textContent = n;
+    document.title = n > 0 ? "(" + n + ") Novo pedido! — Tiburcio Açaí" : TITULO_BASE;
+  }
+
+  // Mantém a tela do tablet/celular ligada (senão o navegador pausa a busca de pedidos)
+  let wakeLock = null;
+  async function pedirTelaLigada() {
+    try {
+      if (!("wakeLock" in navigator)) return false;
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+      return true;
+    } catch (e) { wakeLock = null; return false; }
+  }
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState !== "visible" || el("app").hidden) return;
+    if (localStorage.getItem("tiburcioTela") === "on" && !wakeLock) await pedirTelaLigada();
+    atualizarPedidos(); // ao voltar pra frente, busca os pedidos na hora
+  });
+
+  function desbloquearAudio() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) { /* sem som neste aparelho */ }
+  }
+  document.addEventListener("click", desbloquearAudio);
+  document.addEventListener("keydown", desbloquearAudio);
+  function tocarAlerta() {
+    if (!somLigado()) return;
+    alertasTocados++;
+    desbloquearAudio();
+    if (!audioCtx) return;
+    try {
+      [0, 0.32, 0.64].forEach((atraso, i) => {
+        const osc = audioCtx.createOscillator();
+        const ganho = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = i % 2 === 0 ? 880 : 660;
+        ganho.gain.setValueAtTime(0.0001, audioCtx.currentTime + atraso);
+        ganho.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + atraso + 0.03);
+        ganho.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + atraso + 0.26);
+        osc.connect(ganho); ganho.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + atraso); osc.stop(audioCtx.currentTime + atraso + 0.28);
+      });
+    } catch (e) { /* tudo bem */ }
+  }
+
+  function assinaturaPedidos() {
+    return dados.pedidos.map((p) => p.id + ":" + p.status + ":" + (p.estimativa_minutos || "")).join("|") + "#" + dados.pedidosOk;
+  }
+  async function atualizarPedidos() {
+    if (el("app").hidden) return;
+    try { await carregarPedidos(); } catch (e) { return; } // sem conexão: mantém o que já está na tela
+    const novos = dados.pedidos.filter((p) => p.status === "novo" && !idsPedidosConhecidos.has(p.id));
+    dados.pedidos.forEach((p) => idsPedidosConhecidos.add(p.id));
+    atualizarContadorPedidos();
+    if (novos.length) { tocarAlerta(); if (abaAtual !== "pedidos") avisar("🔔 Novo pedido chegou! (aba Pedidos)"); }
+    const assinatura = assinaturaPedidos();
+    if (abaAtual === "pedidos" && el("modalFundo").hidden && (assinatura !== ultimaAssinatura || Date.now() - ultimoRender > 60000)) renderPedidos();
+  }
+  function iniciarPollingPedidos() {
+    pararPollingPedidos();
+    timerPedidos = setInterval(atualizarPedidos, INTERVALO_PEDIDOS);
+  }
+  function pararPollingPedidos() {
+    if (timerPedidos) clearInterval(timerPedidos);
+    timerPedidos = null;
+  }
+
+  async function mudarStatus(id, status, motivo, minutos) {
+    const r = await api("POST", "/rest/v1/rpc/mudar_status_pedido", { p_id: id, p_status: status, p_motivo: motivo || null, p_minutos: minutos === undefined ? null : minutos });
+    if (!r || r.ok !== true) throw new Error((r && r.motivo) || "Não consegui mudar a situação do pedido.");
+    await carregarPedidos();
+    atualizarContadorPedidos();
+    renderAba();
+  }
+
+  const hora = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+  function haQuanto(iso) {
+    const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    if (min < 1) return "agora";
+    if (min < 60) return "há " + min + " min";
+    return "há " + Math.floor(min / 60) + " h " + (min % 60) + " min";
+  }
+  function linkWhats(tel) {
+    const d = String(tel || "").replace(/\D/g, "");
+    return d ? "https://wa.me/" + (d.length <= 11 ? "55" + d : d) : "";
+  }
+
+  function htmlPedido(p) {
+    const retirada = p.tipo_entrega === "retirada";
+    const e = p.endereco || {};
+    const itens = (Array.isArray(p.itens) ? p.itens : []).map((i) =>
+      "<li><b>" + esc(i.quantidade) + "x</b> " + esc(i.nome) + ((i.detalhes || []).length ? "<small>" + esc((i.detalhes || []).join(" · ")) + "</small>" : "") + "</li>").join("");
+    const promos = (Array.isArray(p.promocoes) ? p.promocoes : []).concat(p.cupom_codigo && !(p.promocoes || []).some((x) => String(x).includes(p.cupom_codigo)) ? ["🎟️ Cupom " + p.cupom_codigo] : []);
+    const wa = linkWhats(p.cliente_telefone);
+    let botoes = "";
+    if (p.status === "novo") {
+      botoes = '<button type="button" class="btn" data-acao="aceitar-pedido" data-id="' + esc(p.id) + '">Aceitar</button>' +
+        '<button type="button" class="btn-perigo" data-acao="recusar-pedido" data-id="' + esc(p.id) + '">Recusar</button>';
+    } else if (p.status === "aceito") {
+      botoes = '<button type="button" class="btn" data-acao="saiu-pedido" data-id="' + esc(p.id) + '">' + (retirada ? "Pronto pra retirada" : "Saiu pra entrega") + "</button>" +
+        '<button type="button" class="btn-perigo" data-acao="recusar-pedido" data-id="' + esc(p.id) + '">Cancelar pedido</button>' +
+        '<button type="button" class="link" data-acao="desfazer-pedido" data-id="' + esc(p.id) + '">Voltar para novo</button>';
+    } else if (p.status === "saiu") {
+      botoes = '<button type="button" class="link" data-acao="desfazer-pedido" data-id="' + esc(p.id) + '">Voltar para em preparo</button>';
+    } else {
+      botoes = '<button type="button" class="link" data-acao="desfazer-pedido" data-id="' + esc(p.id) + '">Desfazer recusa</button>';
+    }
+    const rotulo = { novo: "NOVO", aceito: "Em preparo", saiu: retirada ? "Pronto" : "Saiu", recusado: "Recusado" }[p.status] || p.status;
+    return '<article class="pedido pedido-' + esc(p.status) + '" data-pedido="' + esc(p.id) + '">' +
+      '<div class="pedido-topo"><strong>#' + esc(p.numero) + '</strong><span class="badge">' + (retirada ? "🏪 Retirada" : "🛵 Entrega") + '</span><span class="badge" style="background:#e9dff0;color:#4b1a58">' + esc(rotulo) + "</span>" +
+      '<span class="hora">' + esc(hora(p.criado_em)) + " · " + esc(haQuanto(p.criado_em)) + "</span></div>" +
+      '<div class="cliente"><strong>' + esc(p.cliente_nome) + "</strong> · " + (wa ? '<a href="' + esc(wa) + '" target="_blank" rel="noopener">' + esc(p.cliente_telefone) + "</a>" : esc(p.cliente_telefone)) + "</div>" +
+      (retirada ? "" : '<div class="endereco">' + esc([e.rua, e.numero].filter(Boolean).join(", ")) + (e.bairro ? " — " + esc(e.bairro) : "") + (e.complemento ? " · " + esc(e.complemento) : "") + (e.referencia ? " · ref.: " + esc(e.referencia) : "") + "</div>") +
+      "<ul>" + itens + "</ul>" +
+      (promos.length ? '<div class="promos">' + promos.map((x) => esc(x)).join("<br>") + "</div>" : "") +
+      '<div class="totais">Subtotal ' + brl(p.subtotal) + (Number(p.desconto) > 0 ? " · Desconto -" + brl(p.desconto) : "") + (retirada ? "" : " · Entrega " + brl(Math.max(Number(p.taxa) - Number(p.desconto_frete || 0), 0))) +
+        " · <strong>Total " + brl(p.total) + "</strong><br>Pagamento: " + esc(p.pagamento || "-") + (p.troco ? " (troco para " + esc(p.troco) + ")" : "") + "</div>" +
+      (p.status === "aceito" && p.estimativa_minutos ? '<div class="totais">⏱️ Previsão informada ao cliente: ' + esc(p.estimativa_minutos) + " min</div>" : "") +
+      (p.status === "recusado" ? '<div class="motivo">Motivo: ' + esc(p.motivo_recusa || "") + (p.cupom_codigo ? " · o uso do cupom foi devolvido" : "") + "</div>" : "") +
+      '<div class="acoes-pedido">' + botoes + "</div></article>";
+  }
+
+  function renderPedidos() {
+    ultimaAssinatura = assinaturaPedidos();
+    ultimoRender = Date.now();
+    if (!dados.pedidosOk) {
+      el("conteudo").innerHTML = '<p class="vazio">Os pedidos ainda não foram ativados. Rode o SQL da etapa 4 no Supabase e recarregue esta página.</p>';
+      return;
+    }
+    const agora = Date.now();
+    const porCriacao = (a, b) => String(a.criado_em).localeCompare(String(b.criado_em));
+    const novos = dados.pedidos.filter((p) => p.status === "novo").sort(porCriacao);
+    const preparo = dados.pedidos.filter((p) => p.status === "aceito").sort(porCriacao);
+    const saidas = dados.pedidos.filter((p) => p.status === "saiu" && agora - new Date(p.saiu_em || p.criado_em).getTime() < TRES_HORAS).sort(porCriacao);
+    const antigos = dados.pedidos.filter((p) => p.status === "recusado" || (p.status === "saiu" && agora - new Date(p.saiu_em || p.criado_em).getTime() >= TRES_HORAS)).sort((a, b) => porCriacao(b, a));
+    const hojeStr = new Date().toDateString();
+    const hoje = dados.pedidos.filter((p) => new Date(p.criado_em).toDateString() === hojeStr && p.status !== "recusado");
+    const total = hoje.reduce((s, p) => s + Number(p.total || 0), 0);
+
+    let html = '<div class="barra-pedidos"><span class="resumo-dia">' + (papel === "cozinha" ? "Fila de pedidos" : "Hoje: " + hoje.length + " pedido(s) · " + brl(total)) + ' · atualizado às ' + hora(new Date().toISOString()) + "</span>" +
+      '<span><button type="button" class="btn-mini" data-acao="alternar-som">' + (somLigado() ? "🔔 Som ligado" : "🔕 Som desligado") + '</button> <button type="button" class="btn-mini" data-acao="alternar-tela">' + (wakeLock ? "📱 Tela ligada: sim" : "📱 Tela ligada: não") + '</button> <button type="button" class="btn-mini" data-acao="atualizar-pedidos">↻ Atualizar</button></span></div>';
+    const secao = (titulo, lista, vazio) => '<h2 class="sec-pedidos">' + titulo + " (" + lista.length + ")</h2>" + (lista.length ? lista.map(htmlPedido).join("") : (vazio ? '<p class="vazio">' + vazio + "</p>" : ""));
+    html += secao("Novos", novos, "Nenhum pedido novo.");
+    html += secao("Em preparo", preparo, "");
+    html += secao("Saíram / prontos (últimas 3 h)", saidas, "");
+    if (antigos.length) html += '<details style="margin-top:18px"><summary class="sec-pedidos" style="cursor:pointer">Concluídos e recusados (' + antigos.length + ")</summary>" + antigos.map(htmlPedido).join("") + "</details>";
+    el("conteudo").innerHTML = html;
+  }
+
+  function renderModalAceite() {
+    const f = form;
+    const p = dados.pedidos.find((x) => x.id === f.id);
+    abrirModal('<h2>Aceitar pedido #' + esc(p ? p.numero : "") + '</h2><p class="erro" id="erroModal" hidden></p>' +
+      '<p class="dica">Quanto tempo vai levar? O cliente vê essa previsão na tela de acompanhamento.</p><div class="chips">' +
+      [15, 20, 30, 40, 50, 60].map((m) => '<button type="button" class="chip" data-acao="confirmar-aceite" data-min="' + m + '">' + m + " min</button>").join("") +
+      '<button type="button" class="chip" data-acao="confirmar-aceite" data-min="">Sem previsão</button></div>' +
+      '<div class="rodape-modal"><button type="button" class="btn-sec" data-acao="cancelar-modal">Voltar</button></div>');
+  }
+  const MOTIVOS_RECUSA = ["Fora da área de entrega", "Produto em falta", "Loja fechada no momento", "Não consegui confirmar com o cliente", "Outro motivo"];
+  function renderModalRecusa() {
+    const f = form;
+    const p = dados.pedidos.find((x) => x.id === f.id);
+    abrirModal('<h2>' + (p && p.status === "aceito" ? "Cancelar" : "Recusar") + ' pedido #' + esc(p ? p.numero : "") + '</h2><p class="erro" id="erroModal" hidden></p>' +
+      '<div class="campo">Motivo (o cliente vê)' + MOTIVOS_RECUSA.map((m) =>
+        '<label class="check"><input type="radio" name="motivoRecusa" data-campo="recusa-motivo" value="' + esc(m) + '"' + (f.motivo === m ? " checked" : "") + "> " + esc(m) + "</label>").join("") + "</div>" +
+      (f.motivo === "Outro motivo" ? '<label class="campo">Escreva o motivo<input type="text" maxlength="100" data-campo="recusa-outro" value="' + esc(f.outro) + '"></label>' : "") +
+      (p && p.cupom_codigo ? '<p class="dica">Este pedido usou o cupom ' + esc(p.cupom_codigo) + ': o uso será devolvido ao cliente.</p>' : "") +
+      '<div class="rodape-modal"><button type="button" class="btn-sec" data-acao="cancelar-modal">Voltar</button>' +
+      '<button type="button" class="btn-perigo" id="btnSalvarModal" data-acao="confirmar-recusa">Confirmar</button></div>');
   }
 
   /* ---------------- janela (modal) ---------------- */
@@ -1264,6 +1532,35 @@
     "devolver-uso": async (id) => { await devolverUso(id, true); await carregarTudo(); renderModalCupom(); renderAba(); avisar("✅ Uso devolvido."); },
     "desfazer-devolucao": async (id) => { await devolverUso(id, false); await carregarTudo(); renderModalCupom(); renderAba(); avisar("✅ Devolução desfeita."); },
 
+    "aceitar-pedido": (id) => { form = { tipo: "aceite", id }; renderModalAceite(); },
+    "confirmar-aceite": async (id, alvo) => {
+      const pid = form.id;
+      const min = alvo.dataset.min === "" ? null : Number(alvo.dataset.min);
+      try { await mudarStatus(pid, "aceito", null, min); fecharModal(); avisar("✅ Pedido aceito."); }
+      catch (err) { erroModal(erroTexto(err)); }
+    },
+    "recusar-pedido": (id) => { form = { tipo: "recusa", id, motivo: "", outro: "" }; renderModalRecusa(); },
+    "confirmar-recusa": async () => {
+      const motivo = form.motivo === "Outro motivo" ? String(form.outro || "").trim() : form.motivo;
+      if (!motivo) return erroModal("Escolha o motivo da recusa" + (form.motivo === "Outro motivo" ? " e escreva qual é." : "."));
+      const pid = form.id;
+      try { await mudarStatus(pid, "recusado", motivo); fecharModal(); avisar("Pedido recusado. O cliente já vê o motivo."); }
+      catch (err) { erroModal(erroTexto(err)); }
+    },
+    "saiu-pedido": async (id) => { await mudarStatus(id, "saiu"); avisar("✅ Cliente avisado."); },
+    "desfazer-pedido": async (id) => {
+      const p = dados.pedidos.find((x) => x.id === id);
+      await mudarStatus(id, p.status === "saiu" ? "aceito" : "novo", null, null);
+    },
+    "alternar-som": () => { localStorage.setItem("tiburcioSom", somLigado() ? "off" : "on"); if (somLigado()) tocarAlerta(); renderPedidos(); },
+    "alternar-tela": async () => {
+      if (wakeLock) { try { await wakeLock.release(); } catch (e) { /* tudo bem */ } wakeLock = null; localStorage.setItem("tiburcioTela", "off"); }
+      else if (await pedirTelaLigada()) localStorage.setItem("tiburcioTela", "on");
+      else avisar("Este aparelho ou navegador não permite manter a tela ligada.", true);
+      renderPedidos();
+    },
+    "atualizar-pedidos": async () => { await carregarPedidos(); atualizarContadorPedidos(); renderPedidos(); },
+
     "cancelar-modal": () => fecharModal(),
     "salvar-produto": async () => { if (await comBotaoOcupado(() => salvarProdutoCompleto(form))) await depoisDeSalvar("✅ Produto salvo."); },
     "salvar-categoria": async () => { if (await comBotaoOcupado(() => salvarCategoriaCompleta(form))) await depoisDeSalvar("✅ Categoria salva."); },
@@ -1349,6 +1646,7 @@
         break;
       }
       case "cupom-um-tel": form.umPorTelefone = t.checked; break;
+      case "recusa-outro": form.outro = t.value; break;
       case "promo-alvo-brinde": if (t.checked) form.alvosBrinde.add(t.dataset.id); else form.alvosBrinde.delete(t.dataset.id); break;
       default: break;
     }
@@ -1362,6 +1660,7 @@
       else if (tog === "promo-ativa") { await alternarAtivo("promocoes", "ativa", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo! Já está valendo no site."); }
       else if (c === "promo-tipo" && form) { form.tipoPromo = t.value; if (t.value === "upgrade") form.escopo = "produtos"; renderModalPromocao(); }
       else if (c === "promo-escopo" && form) { form.escopo = t.value; form.alvos = new Set(); if (form.tipo === "cupom") renderModalCupom(); else renderModalPromocao(); }
+      else if (c === "recusa-motivo" && form) { form.motivo = t.value; renderModalRecusa(); }
       else if (c === "cupom-efeito" && form) { form.efeito = t.value; renderModalCupom(); }
       else if (c === "cupom-limitado" && form) { form.limitado = t.value === "sim"; }
       else if (tog === "cupom-ativo") { await alternarAtivo("cupons", "ativo", t.dataset.id, t.checked); await carregarTudo(); renderAba(); avisar("✅ Salvo."); }
