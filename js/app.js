@@ -1211,17 +1211,22 @@
   /* ---------------------------------------------------------
    * CUPOM (consultado e "gasto" no banco por funções do Supabase)
    * --------------------------------------------------------- */
-  async function chamarRpc(nome, corpo) {
+  async function chamarRpc(nome, corpo, tempoMs) {
+    const controle = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controle && tempoMs ? setTimeout(() => controle.abort(), tempoMs) : null;
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${nome}`, {
         method: "POST",
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify(corpo),
+        signal: controle ? controle.signal : undefined,
       });
       if (!res.ok) return null;
       return await res.json();
     } catch (e) {
       return null;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
@@ -1302,6 +1307,122 @@
     });
   }
 
+  /* ---------------------------------------------------------
+   * ACOMPANHAMENTO DO PEDIDO (o cliente vê o status que a loja marca no painel)
+   * --------------------------------------------------------- */
+  const CHAVE_PEDIDO = "tiburcioPedido";
+  const INTERVALO_ACOMP = window.__INTERVALO_ACOMP || 8000; // (só os testes mudam isso)
+  const TEMPO_REGISTRO_PEDIDO = window.__TEMPO_PEDIDO || 2500;
+  const VALIDADE_ACOMP_MS = 6 * 60 * 60 * 1000;
+  let timerAcomp = null;
+  let statusAcomp = null;
+
+  function lerPedidoAcompanhado() {
+    try {
+      const p = JSON.parse(localStorage.getItem(CHAVE_PEDIDO));
+      if (p && p.id && Date.now() - p.criado < VALIDADE_ACOMP_MS) return p;
+    } catch (e) { /* sem registro */ }
+    return null;
+  }
+  function guardarPedidoAcompanhado(p) {
+    try { localStorage.setItem(CHAVE_PEDIDO, JSON.stringify(p)); } catch (e) { /* tudo bem */ }
+  }
+
+  async function registrarPedido(payload) {
+    const r = await chamarRpc("criar_pedido", { p_dados: payload }, TEMPO_REGISTRO_PEDIDO);
+    return r && r.ok ? { id: r.id, numero: r.numero } : null;
+  }
+
+  function renderAcompanhamento(d, semConexao) {
+    const p = lerPedidoAcompanhado();
+    const pill = $("#pillAcompanhar");
+    const corpo = $("#acompCorpo");
+    if (!p || !pill || !corpo) return;
+    const status = d ? d.status : statusAcomp || "novo";
+    const retirada = (d ? d.tipo_entrega : p.tipo) === "retirada";
+    let icone = "⏳", titulo = "Pedido enviado!", msg = "Aguardando a loja aceitar o seu pedido.", passo = 0, rotulo = "aguardando a loja";
+    if (status === "aceito") {
+      icone = "👩‍🍳"; titulo = "Seu pedido está em preparo!"; passo = 1; rotulo = "em preparo";
+      msg = d && d.estimativa_minutos ? "Previsão: cerca de " + d.estimativa_minutos + " minutos." : "Já estamos preparando com carinho.";
+    } else if (status === "saiu") {
+      passo = 2;
+      if (retirada) { icone = "✅"; titulo = "Seu pedido está pronto para retirada!"; msg = "Pode vir buscar. Obrigado pela preferência!"; rotulo = "pronto para retirada"; }
+      else { icone = "🛵"; titulo = "Seu pedido saiu para entrega!"; msg = "Já está a caminho. Obrigado pela preferência!"; rotulo = "saiu para entrega"; }
+    } else if (status === "recusado") {
+      icone = "😕"; titulo = "Não conseguimos aceitar seu pedido"; rotulo = "não aceito";
+      msg = "Motivo: " + ((d && d.motivo_recusa) || "fale com a gente");
+    }
+    const passos = ["Recebido", "Em preparo", retirada ? "Pronto" : "A caminho"];
+    const lista = status === "recusado" ? "" : '<ol class="acomp-passos">' + passos.map((t, i) =>
+      `<li class="${i < passo || (i === passo && passo === 2) ? "feito" : i === passo ? "atual" : ""}">${t}</li>`).join("") + "</ol>";
+    corpo.innerHTML = `
+      <div class="acomp-icone" aria-hidden="true">${icone}</div>
+      <h4 class="acomp-titulo">${esc(titulo)}</h4>
+      <p class="acomp-msg">${esc(msg)}</p>
+      ${lista}
+      ${status === "novo" ? '<p class="acomp-nota">Se ainda não enviou a mensagem no WhatsApp, envie para a loja ver seu pedido mais rápido.</p>' : ""}
+      <a class="btn btn-ghost acomp-whats" href="https://wa.me/${esc(CONFIG.WHATSAPP_NUMBER)}" target="_blank" rel="noopener">Falar com a loja no WhatsApp</a>
+      <p class="acomp-nota">Pedido #${esc(p.numero)} · esta tela atualiza sozinha${semConexao ? " (sem conexão agora, tentando de novo…)" : ""}</p>`;
+    pill.textContent = "🧾 Pedido #" + p.numero + " · " + rotulo;
+    pill.hidden = false;
+  }
+
+  function pararPollingAcomp() {
+    if (timerAcomp) clearInterval(timerAcomp);
+    timerAcomp = null;
+  }
+  function iniciarPollingAcomp() {
+    pararPollingAcomp();
+    timerAcomp = setInterval(atualizarAcompanhamento, INTERVALO_ACOMP);
+  }
+
+  async function atualizarAcompanhamento() {
+    const p = lerPedidoAcompanhado();
+    if (!p) {
+      pararPollingAcomp();
+      if ($("#pillAcompanhar")) $("#pillAcompanhar").hidden = true;
+      return;
+    }
+    const d = await chamarRpc("acompanhar_pedido", { p_id: p.id }, 6000);
+    if (d && d.ok) {
+      statusAcomp = d.status;
+      renderAcompanhamento(d);
+      if (d.status === "saiu" || d.status === "recusado") pararPollingAcomp();
+    } else if (d && d.ok === false) {
+      // o pedido não existe mais no banco
+      pararPollingAcomp();
+      try { localStorage.removeItem(CHAVE_PEDIDO); } catch (e) { /* tudo bem */ }
+      $("#pillAcompanhar").hidden = true;
+      fecharAcompanhamento();
+    } else {
+      renderAcompanhamento(null, true);
+    }
+  }
+
+  function abrirAcompanhamento() {
+    if (!lerPedidoAcompanhado()) return;
+    renderAcompanhamento(null);
+    $("#acompanhamentoOverlay").classList.add("aberto");
+    atualizarAcompanhamento();
+    if (statusAcomp !== "saiu" && statusAcomp !== "recusado") iniciarPollingAcomp();
+  }
+  function fecharAcompanhamento() {
+    const o = $("#acompanhamentoOverlay");
+    if (o) o.classList.remove("aberto");
+  }
+
+  function initAcompanhamento() {
+    const pill = $("#pillAcompanhar");
+    if (!pill) return; // página sem a tela de acompanhamento
+    pill.addEventListener("click", abrirAcompanhamento);
+    $("#fecharAcompanhamento").addEventListener("click", fecharAcompanhamento);
+    if (lerPedidoAcompanhado()) {
+      atualizarAcompanhamento().then(() => {
+        if (lerPedidoAcompanhado() && statusAcomp !== "saiu" && statusAcomp !== "recusado") iniciarPollingAcomp();
+      });
+    }
+  }
+
   function initCheckoutSubmit() {
     $("#checkoutForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -1359,35 +1480,41 @@
 
       const troco = state.pagamento === "dinheiro" ? $("#campoTroco").value.trim() : "";
 
-      // Cupom: só é "gasto" se de fato valeu no pedido (se a promoção deu mais desconto, ele não é usado)
-      const calc = calcularDescontoTotal();
-      if (state.cupom && calc.cupom && calc.cupom.usar) {
-        const botao = $("#btnFinalizarWhats");
-        const aba = window.open("about:blank", "_blank"); // aberta já, antes da espera, pra não ser bloqueada
-        botao.disabled = true;
-        const r = await chamarRpc("usar_cupom", { p_codigo: state.cupom.codigo, p_telefone: telefone });
-        botao.disabled = false;
-        if (!r || !r.valido) {
-          if (aba) { try { aba.close(); } catch (x) { /* tudo bem */ } }
-          if (!r) {
-            toast("Não consegui validar o cupom agora. Tente de novo ou remova o cupom.");
-          } else {
-            state.cupom = null;
-            renderResumoCheckout();
-            atualizarValoresCarrinho();
-            mostrarMensagemCupom(r.motivo || "Esse cupom não pode ser usado.", "erro");
-            toast(r.motivo || "Esse cupom não pode ser usado.");
+      const botao = $("#btnFinalizarWhats");
+      if (botao.disabled) return; // evita clique duplo (dois pedidos iguais)
+
+      // A aba do WhatsApp é aberta já no clique, antes de qualquer espera, pra o navegador não bloquear.
+      const aba = window.open("about:blank", "_blank");
+      botao.disabled = true;
+      try {
+        // Cupom: só é "gasto" se de fato valeu no pedido (se a promoção deu mais desconto, ele não é usado)
+        let cupomUsoId = null;
+        const calc = calcularDescontoTotal();
+        if (state.cupom && calc.cupom && calc.cupom.usar) {
+          const r = await chamarRpc("usar_cupom", { p_codigo: state.cupom.codigo, p_telefone: telefone });
+          if (!r || !r.valido) {
+            if (aba) { try { aba.close(); } catch (x) { /* tudo bem */ } }
+            if (!r) {
+              toast("Não consegui validar o cupom agora. Tente de novo ou remova o cupom.");
+            } else {
+              state.cupom = null;
+              renderResumoCheckout();
+              atualizarValoresCarrinho();
+              mostrarMensagemCupom(r.motivo || "Esse cupom não pode ser usado.", "erro");
+              toast(r.motivo || "Esse cupom não pode ser usado.");
+            }
+            return;
           }
-          return;
+          cupomUsoId = r.uso_id || null;
         }
-        enviarPedidoWhatsApp({ nome, telefone, endereco, troco }, aba);
-        return;
+        await enviarPedidoWhatsApp({ nome, telefone, endereco, troco }, aba, cupomUsoId);
+      } finally {
+        botao.disabled = false;
       }
-      enviarPedidoWhatsApp({ nome, telefone, endereco, troco });
     });
   }
 
-  function enviarPedidoWhatsApp({ nome, telefone, endereco, troco }, aba) {
+  async function enviarPedidoWhatsApp({ nome, telefone, endereco, troco }, aba, cupomUsoId) {
     const subtotal = calcularSubtotal();
     const { valor: desconto, linhas: linhasPromo, frete, cupom } = calcularDescontoTotal();
     const taxa = state.entrega.tipo === "retirada" ? 0 : endereco.taxa || 0;
@@ -1437,19 +1564,50 @@
     }
 
     const link = buildWhatsAppLink(msg);
-    if (aba && !aba.closed) {
-      // a janela foi aberta antes da conferência do cupom (assim o navegador não bloqueia)
-      try { aba.location.href = link; } catch (e) { window.open(link, "_blank"); }
-    } else {
-      window.open(link, "_blank");
-    }
 
+    // O pedido também é guardado no banco (a loja vê no painel e o cliente acompanha).
+    // Se o banco não responder em poucos segundos, o pedido segue só pelo WhatsApp, como sempre foi.
+    const registro = await registrarPedido({
+      nome,
+      telefone,
+      tipo_entrega: state.entrega.tipo,
+      endereco: state.entrega.tipo === "entrega"
+        ? { bairro: endereco.bairro, rua: endereco.rua, numero: endereco.numero, complemento: endereco.complemento || "", referencia: endereco.referencia || "" }
+        : {},
+      itens: state.cart.map((i) => ({ nome: i.nome, quantidade: i.quantidade, preco_unitario: i.precoUnitario, detalhes: i.itens })),
+      promocoes: linhasPromo,
+      subtotal,
+      desconto,
+      taxa,
+      desconto_frete: frete,
+      total,
+      pagamento: formaPagamento ? formaPagamento.nome : "",
+      troco: troco || "",
+      cupom_codigo: cupom && cupom.usar ? cupom.codigo : "",
+      cupom_uso_id: cupomUsoId || null,
+    });
+
+    const tipoPedido = state.entrega.tipo;
     state.cart = [];
     state.cupom = null;
     limparCampoCupom();
     renderCart();
     fecharCheckout();
-    toast("Pedido enviado para o WhatsApp! ✅");
+    if (registro) {
+      guardarPedidoAcompanhado({ id: registro.id, numero: registro.numero, tipo: tipoPedido, criado: Date.now() });
+      statusAcomp = "novo";
+      toast("Pedido #" + registro.numero + " enviado! ✅");
+      abrirAcompanhamento();
+    } else {
+      toast("Pedido enviado para o WhatsApp! ✅");
+    }
+
+    // por último, abre o WhatsApp (a aba em branco foi aberta no clique pra o navegador não bloquear)
+    if (aba && !aba.closed) {
+      try { aba.location.href = link; } catch (e) { window.location.href = link; }
+    } else {
+      window.location.href = link;
+    }
   }
 
   /* ---------------------------------------------------------
@@ -1493,6 +1651,7 @@
     initBairroSelect();
     initCheckoutSubmit();
     initCupom();
+    initAcompanhamento();
     initUiEvents();
     renderCart();
     initPromocoes();
